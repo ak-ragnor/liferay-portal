@@ -35,6 +35,50 @@ public class DepotAssetRendererFactoryWrapperTest {
 		LiferayUnitTestRule.INSTANCE;
 
 	@Test
+	public void testAssetRendererReturnsFallbackGroupWhenNoContext()
+		throws Exception {
+
+		AssetRenderer<Object> assetRenderer = Mockito.mock(AssetRenderer.class);
+
+		Mockito.when(
+			_assetRendererFactory.getAssetRenderer(Mockito.anyLong())
+		).thenReturn(
+			assetRenderer
+		);
+
+		long depotGroupId = _setUpDepotGroup();
+
+		Mockito.when(
+			assetRenderer.getGroupId()
+		).thenReturn(
+			depotGroupId
+		);
+
+		long groupId = _setUpGroup();
+
+		Mockito.when(
+			_siteConnectedGroupGroupProvider.
+				getCurrentAndAncestorSiteAndDepotGroupIds(Mockito.anyLong())
+		).thenReturn(
+			new long[] {depotGroupId, groupId}
+		);
+
+		DepotAssetRendererFactoryWrapper depotAssetRendererFactoryWrapper =
+			new DepotAssetRendererFactoryWrapper(
+				_assetRendererFactory, null, null, _groupLocalService, null,
+				null, _siteConnectedGroupGroupProvider);
+
+		try (SafeCloseable safeCloseable =
+				GroupThreadLocal.setGroupIdWithSafeCloseable(-1)) {
+
+			Assert.assertSame(
+				assetRenderer,
+				depotAssetRendererFactoryWrapper.getAssetRenderer(
+					RandomTestUtil.randomLong()));
+		}
+	}
+
+	@Test
 	public void testAssetRenderIsNotReturnedForUnconnectedGroup()
 		throws Exception {
 
