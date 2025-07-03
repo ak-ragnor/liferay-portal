@@ -7591,9 +7591,11 @@ public class JournalArticleLocalServiceImpl
 
 		// Resources
 
-		_resourceLocalService.copyModelResources(
-			sourceArticle.getCompanyId(), JournalArticle.class.getName(),
-			sourceArticle.getResourcePrimKey(), resourcePrimKey);
+		if (newArticle) {
+			_resourceLocalService.copyModelResources(
+				sourceArticle.getCompanyId(), JournalArticle.class.getName(),
+				sourceArticle.getResourcePrimKey(), resourcePrimKey);
+		}
 
 		// Small image
 
