@@ -1561,12 +1561,21 @@ public class JournalDisplayContext {
 		int end = articleAndFolderSearchContainer.getEnd();
 		int start = articleAndFolderSearchContainer.getStart();
 
-		SearchResponse journalFolderSearchResponse =
-			JournalSearcherUtil.searchJournalFolders(
-				searchContext -> _populateSearchContext(
-					start, end, searchContext, false));
+		int foldersCount = 0;
+		List<Document> folders = new ArrayList<>();
 
-		int foldersCount = journalFolderSearchResponse.getTotalHits();
+		if (!isHighlightedDDMStructure() && !isNavigationStructure() &&
+			!isNavigationRecent()) {
+
+			SearchResponse journalFolderSearchResponse =
+				JournalSearcherUtil.searchJournalFolders(
+					searchContext -> _populateSearchContext(
+						start, end, searchContext, false));
+
+			folders = journalFolderSearchResponse.getDocuments71();
+
+			foldersCount = journalFolderSearchResponse.getTotalHits();
+		}
 
 		int journalArticlesStart = start - foldersCount;
 
@@ -1575,7 +1584,7 @@ public class JournalDisplayContext {
 		int journalArticlesEnd = delta + journalArticlesStart;
 
 		if (start < foldersCount) {
-			documents.addAll(journalFolderSearchResponse.getDocuments71());
+			documents.addAll(folders);
 
 			journalArticlesEnd = Math.max(1, delta - documents.size());
 
