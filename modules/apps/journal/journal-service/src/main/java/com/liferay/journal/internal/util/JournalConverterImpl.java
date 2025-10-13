@@ -575,23 +575,19 @@ public class JournalConverterImpl implements JournalConverter {
 				DDMFormFieldOptions ddmFormFieldOptions =
 					(DDMFormFieldOptions)ddmFormField.getProperty("options");
 
-				Map<String, LocalizedValue> options =
-					ddmFormFieldOptions.getOptions();
-
-				if (options.size() > 1) {
-					dynamicContentElement.addCDATA(fieldValue);
-
-					return;
-				}
-
 				JSONArray fieldValueJSONArray = _jsonFactory.createJSONArray(
 					fieldValue);
 
-				if (fieldValueJSONArray.length() == 1) {
-					fieldValue = Boolean.TRUE.toString();
-				}
-				else {
-					fieldValue = StringPool.BLANK;
+				dynamicContentElement.addCDATA(fieldValue);
+
+				for (int i = 0; i < fieldValueJSONArray.length(); i++) {
+					String selectedValue = fieldValueJSONArray.getString(i);
+
+					Element optionReferenceElement =
+						dynamicContentElement.addElement("option-reference");
+
+					optionReferenceElement.addCDATA(
+						ddmFormFieldOptions.getOptionReference(selectedValue));
 				}
 			}
 			catch (PortalException portalException) {
@@ -602,8 +598,20 @@ public class JournalConverterImpl implements JournalConverter {
 						portalException);
 				}
 			}
+		}
+		else if (Objects.equals(DDMFormFieldTypeConstants.RADIO, fieldType) &&
+				 Validator.isNotNull(fieldValue)) {
+
+			DDMFormFieldOptions ddmFormFieldOptions =
+				ddmFormField.getDDMFormFieldOptions();
 
 			dynamicContentElement.addCDATA(fieldValue);
+
+			Element optionReferenceElement = dynamicContentElement.addElement(
+				"option-reference");
+
+			optionReferenceElement.addCDATA(
+				ddmFormFieldOptions.getOptionReference(fieldValue));
 		}
 		else if (Objects.equals(DDMFormFieldTypeConstants.SELECT, fieldType) &&
 				 Validator.isNotNull(fieldValue)) {
@@ -640,10 +648,20 @@ public class JournalConverterImpl implements JournalConverter {
 				}
 			}
 			else {
-				dynamicContentElement.addCDATA(
-					StringUtil.merge(
-						JSONUtil.toStringArray(jsonArray),
-						StringPool.COMMA_AND_SPACE));
+				Element optionElement = dynamicContentElement.addElement(
+					"option");
+
+				optionElement.addCDATA(jsonArray.getString(0));
+
+				Element optionReferenceElement =
+					dynamicContentElement.addElement("option-reference");
+
+				DDMFormFieldOptions ddmFormFieldOptions =
+					ddmFormField.getDDMFormFieldOptions();
+
+				optionReferenceElement.addCDATA(
+					ddmFormFieldOptions.getOptionReference(
+						jsonArray.getString(0)));
 			}
 		}
 		else {
