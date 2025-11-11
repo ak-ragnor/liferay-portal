@@ -142,6 +142,8 @@ import {config as segmentExperimentWebConfig} from './tests/segment-experiment-w
 import {config as segmentsWebConfig} from './tests/segments-web/main/config';
 import {config as pageManagementSiteConfig} from './tests/setup/page-management-site/main/config';
 import {config as pageManagementSiteTeardownConfig} from './tests/setup/page-management-site/teardown/config';
+import {config as siteCmsSiteConfig} from './tests/setup/site-cms-site/main/config';
+import {config as siteCmsSiteTeardownConfig} from './tests/setup/site-cms-site/teardown/config';
 import {config as siteAdminWebConfig} from './tests/site-admin-web/main/config';
 import {config as siteCmsSiteInitializerConfig} from './tests/site-cms-site-initializer/main/config';
 import {config as siteCmsSiteInitializerPermissionsConfig} from './tests/site-cms-site-initializer/permissions/config';
@@ -170,6 +172,8 @@ import {config as marketplaceConfig} from './tests/workspaces/liferay-workspace-
 const setupProjects = [
 	pageManagementSiteConfig,
 	pageManagementSiteTeardownConfig,
+	siteCmsSiteConfig,
+	siteCmsSiteTeardownConfig,
 ];
 
 const resultsPath = 'test-results/TEST-playwright.xml';
