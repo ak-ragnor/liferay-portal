@@ -1278,7 +1278,14 @@ public class StructuredContentResourceImpl
 		for (Map.Entry<String, List<ContentFieldValue>> entry :
 				contentFieldValuesMap.entrySet()) {
 
-			Field field = fields.get(entry.getKey());
+			DDMFormFieldValue ddmFormFieldValue = ddmFormFieldValuesMap.get(
+				entry.getKey());
+
+			if (ddmFormFieldValue == null) {
+				continue;
+			}
+
+			Field field = fields.get(ddmFormFieldValue.getName());
 
 			if (field == null) {
 				continue;
