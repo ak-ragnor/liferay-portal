@@ -1216,6 +1216,22 @@ public class StructuredContentResourceImpl
 		}
 	}
 
+	private void _populateDDMFormFieldValuesMap(
+		Map<String, DDMFormFieldValue> ddmFormFieldValuesMap,
+		List<DDMFormFieldValue> ddmFormFieldValues) {
+
+		for (DDMFormFieldValue ddmFormFieldValue : ddmFormFieldValues) {
+			ddmFormFieldValuesMap.put(
+				ddmFormFieldValue.getFieldReference(), ddmFormFieldValue);
+
+			if (ddmFormFieldValue.getNestedDDMFormFieldValues() != null) {
+				_populateDDMFormFieldValuesMap(
+					ddmFormFieldValuesMap,
+					ddmFormFieldValue.getNestedDDMFormFieldValues());
+			}
+		}
+	}
+
 	private Fields _toFields(
 			Set<Locale> availableLocales, ContentField[] contentFields,
 			JournalArticle journalArticle)
@@ -1223,15 +1239,14 @@ public class StructuredContentResourceImpl
 
 		DDMStructure ddmStructure = journalArticle.getDDMStructure();
 
+		DDMFormValues ddmFormValues = DDMFormValuesUtil.toDDMFormValues(
+			availableLocales, contentFields, ddmStructure.getDDMForm(),
+			_dlAppService, journalArticle.getGroupId(), _journalArticleService,
+			_layoutLocalService, contextAcceptLanguage.getPreferredLocale(),
+			_getRootDDMFormFields(ddmStructure));
+
 		if (_containsI18nMap(contentFields)) {
 			ServiceContext serviceContext = new ServiceContext();
-
-			DDMFormValues ddmFormValues = DDMFormValuesUtil.toDDMFormValues(
-				availableLocales, contentFields, ddmStructure.getDDMForm(),
-				_dlAppService, journalArticle.getGroupId(),
-				_journalArticleService, _layoutLocalService,
-				contextAcceptLanguage.getPreferredLocale(),
-				_getRootDDMFormFields(ddmStructure));
 
 			serviceContext.setAttribute(
 				"ddmFormValues",
@@ -1254,6 +1269,11 @@ public class StructuredContentResourceImpl
 			new HashMap<>();
 
 		_populateContentFieldValuesMap(contentFields, contentFieldValuesMap);
+
+		Map<String, DDMFormFieldValue> ddmFormFieldValuesMap = new HashMap<>();
+
+		_populateDDMFormFieldValuesMap(
+			ddmFormFieldValuesMap, ddmFormValues.getDDMFormFieldValues());
 
 		for (Map.Entry<String, List<ContentFieldValue>> entry :
 				contentFieldValuesMap.entrySet()) {
