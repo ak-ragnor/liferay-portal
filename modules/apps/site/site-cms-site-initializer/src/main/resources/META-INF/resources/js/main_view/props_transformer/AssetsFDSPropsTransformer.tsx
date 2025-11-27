@@ -24,13 +24,11 @@ import DefaultPermissionModalContent from '../default_permission/DefaultPermissi
 import openResetAssetPermissionModal from '../default_permission/ResetPermissionModalContent';
 import AssetTypeInfoPanel from '../info_panel/AssetTypeInfoPanelContent';
 import AssetNavigationModalContent from '../modal/asset_navigation_view/AssetNavigationModalContent';
-import createAssetAction from './actions/createAssetAction';
-import createFolderAction from './actions/createFolderAction';
+import ACTIONS from './actions/creationMenuActions';
 import deleteAssetEntriesBulkAction, {
 	executeBulkDeleteAction,
 } from './actions/deleteAssetEntriesBulkAction';
 import deleteItemAction from './actions/deleteItemAction';
-import multipleFilesUploadAction from './actions/multipleFilesUploadAction';
 import openFolderItemSelectorAction from './actions/openFolderItemSelectorAction';
 import shareAction from './actions/shareAction';
 import {triggerAssetDownloadBulkAction} from './actions/triggerAssetDownloadBulkAction';
@@ -40,12 +38,6 @@ import SpaceRendererWithCache from './cell_renderers/SpaceRendererWithCache';
 import TypeRenderer from './cell_renderers/TypeRenderer';
 import addOnClickToCreationMenuItems from './utils/addOnClickToCreationMenuItems';
 import transformViewsItemsProps from './utils/transformViewsItemProps';
-
-const ACTIONS = {
-	createAsset: createAssetAction,
-	createFolder: createFolderAction,
-	uploadMultipleFiles: multipleFilesUploadAction,
-};
 
 export type AdditionalProps = {
 	assetLibraries: AssetLibrary[];
