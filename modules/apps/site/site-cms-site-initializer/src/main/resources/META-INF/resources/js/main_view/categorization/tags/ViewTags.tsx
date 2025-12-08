@@ -15,14 +15,15 @@ import CreateTagsModal from './CreateTagsModal';
 import EditTagsModal from './EditTagsModal';
 import MergeTagsModal from './MergeTagsModal';
 
-export default function ViewTags({
+	export default function ViewTags({
+	 actionItems,
 	cmsGroupId,
 	dataSetId,
 	invalidTagCharacters,
 	tagUsagesURL,
 	tagsURL,
 	vocabulariesURL,
-}: {
+}: {actionItems: any;
 	cmsGroupId: number;
 	dataSetId: string;
 	invalidTagCharacters: string;
@@ -221,6 +222,7 @@ export default function ViewTags({
 	return (
 		<div className="categorization-section">
 			<CategorizationToolbar
+				actionItems={actionItems}
 				activeTab="tags"
 				tagsURL={tagsURL}
 				vocabulariesURL={vocabulariesURL}

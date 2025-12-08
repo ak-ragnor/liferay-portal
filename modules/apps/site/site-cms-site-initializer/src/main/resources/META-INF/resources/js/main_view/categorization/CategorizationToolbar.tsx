@@ -13,10 +13,12 @@ import React from 'react';
 import Breadcrumb from '../../common/components/Breadcrumb';
 
 export default function CategorizationToolbar({
+	actionItems,
 	activeTab,
 	tagsURL,
 	vocabulariesURL,
 }: {
+	actionItems?: any;
 	activeTab: string;
 	tagsURL: string;
 	vocabulariesURL: string;
@@ -24,6 +26,7 @@ export default function CategorizationToolbar({
 	return (
 		<div>
 			<Breadcrumb
+				actionItems={actionItems}
 				breadcrumbItems={[
 					{
 						active: true,
