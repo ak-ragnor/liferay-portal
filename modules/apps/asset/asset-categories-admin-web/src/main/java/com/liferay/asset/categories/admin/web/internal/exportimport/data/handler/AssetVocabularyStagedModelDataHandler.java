@@ -8,7 +8,10 @@ package com.liferay.asset.categories.admin.web.internal.exportimport.data.handle
 import com.liferay.asset.categories.admin.web.internal.exportimport.data.handler.helper.AssetVocabularySettingsExportHelper;
 import com.liferay.asset.categories.admin.web.internal.exportimport.data.handler.helper.AssetVocabularySettingsImportHelper;
 import com.liferay.asset.kernel.model.AssetVocabulary;
+import com.liferay.asset.kernel.model.AssetVocabularyGroupRel;
+import com.liferay.asset.kernel.service.AssetVocabularyGroupRelLocalService;
 import com.liferay.asset.kernel.service.AssetVocabularyLocalService;
+import com.liferay.depot.service.DepotEntryService;
 import com.liferay.exportimport.data.handler.base.BaseStagedModelDataHandler;
 import com.liferay.exportimport.kernel.lar.ExportImportPathUtil;
 import com.liferay.exportimport.kernel.lar.PortletDataContext;
@@ -17,18 +20,23 @@ import com.liferay.exportimport.kernel.lar.StagedModelModifiedDateComparator;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
+import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
+import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.xml.Element;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -154,6 +162,17 @@ public class AssetVocabularyStagedModelDataHandler
 		_exportSettingsMetadata(
 			portletDataContext, vocabulary, vocabularyElement, locale);
 
+		Group group = _groupLocalService.getGroup(
+			portletDataContext.getScopeGroupId());
+
+		if (FeatureFlagManagerUtil.isEnabled(
+				group.getCompanyId(), "LPD-17564") &&
+			group.isCMS()) {
+
+			_exportAssetVocabularyGroupRel(
+				portletDataContext, vocabularyElement, vocabulary);
+		}
+
 		portletDataContext.addReferenceElement(
 			vocabulary, vocabularyElement, vocabulary,
 			PortletDataContext.REFERENCE_TYPE_DEPENDENCY, false);
@@ -232,6 +251,18 @@ public class AssetVocabularyStagedModelDataHandler
 				vocabulary.getVisibilityType(), serviceContext);
 		}
 
+		Group group = _groupLocalService.getGroup(
+			portletDataContext.getScopeGroupId());
+
+		if (FeatureFlagManagerUtil.isEnabled(
+				group.getCompanyId(), "LPD-17564")) {
+
+			_importAssetVocabularyGroupRel(
+				portletDataContext,
+				portletDataContext.getImportDataElement(vocabulary),
+				importedVocabulary.getVocabularyId());
+		}
+
 		Map<Long, Long> vocabularyIds =
 			(Map<Long, Long>)portletDataContext.getNewPrimaryKeysMap(
 				AssetVocabulary.class);
@@ -242,6 +273,32 @@ public class AssetVocabularyStagedModelDataHandler
 		portletDataContext.importPermissions(
 			AssetVocabulary.class, vocabulary.getVocabularyId(),
 			importedVocabulary.getVocabularyId());
+	}
+
+	private void _exportAssetVocabularyGroupRel(
+		PortletDataContext portletDataContext, Element vocabularyElement,
+		AssetVocabulary vocabulary) {
+
+		String assetVocabularyGroupRelsPath = ExportImportPathUtil.getModelPath(
+			vocabulary, _VOCABULARY_GROUP_REL + ".json");
+
+		long[] groupIds = ListUtil.toLongArray(
+			_assetVocabularyGroupRelLocalService.
+				getAssetVocabularyGroupRelsByVocabularyId(
+					vocabulary.getVocabularyId()),
+			AssetVocabularyGroupRel::getGroupId);
+
+		JSONObject assetVocabularyGroupRelsJSONObject =
+			_jsonFactory.createJSONObject();
+
+		assetVocabularyGroupRelsJSONObject.put("groupIds", groupIds);
+
+		vocabularyElement.addAttribute(
+			_VOCABULARY_GROUP_REL, assetVocabularyGroupRelsPath);
+
+		portletDataContext.addZipEntry(
+			assetVocabularyGroupRelsPath,
+			assetVocabularyGroupRelsJSONObject.toString());
 	}
 
 	private void _exportSettingsMetadata(
@@ -343,6 +400,50 @@ public class AssetVocabularyStagedModelDataHandler
 		return titleMap;
 	}
 
+	private void _importAssetVocabularyGroupRel(
+			PortletDataContext portletDataContext, Element vocabularyElement,
+			long importedVocabularyId)
+		throws Exception {
+
+		String assetVocabularyGroupRelsPath = vocabularyElement.attributeValue(
+			_VOCABULARY_GROUP_REL);
+
+		JSONObject assetVocabularyGroupRelsJSONObject =
+			_jsonFactory.createJSONObject(
+				portletDataContext.getZipEntryAsString(
+					assetVocabularyGroupRelsPath));
+
+		JSONArray assetVocabularyGroupRelsJSONArray =
+			assetVocabularyGroupRelsJSONObject.getJSONArray("groupIds");
+
+		List<Long> groupIdList = new ArrayList<>();
+
+		for (int i = 0; i < assetVocabularyGroupRelsJSONArray.length(); i++) {
+			long groupId = assetVocabularyGroupRelsJSONArray.getLong(i);
+
+			if (groupId == -1) {
+				continue;
+			}
+
+			if (_depotEntryService.fetchGroupDepotEntry(groupId) != null) {
+				groupIdList.add(groupId);
+			}
+		}
+
+		if (groupIdList.isEmpty()) {
+			groupIdList.add(-1L);
+		}
+
+		long[] groupIds = new long[groupIdList.size()];
+
+		for (int i = 0; i < groupIdList.size(); i++) {
+			groupIds[i] = groupIdList.get(i);
+		}
+
+		_assetVocabularyGroupRelLocalService.setAssetVocabularyGroupRels(
+			importedVocabularyId, groupIds);
+	}
+
 	private boolean _validateMissingReference(
 		String uuid, long groupId, String name) {
 
@@ -364,11 +465,23 @@ public class AssetVocabularyStagedModelDataHandler
 
 	private static final String _SETTINGS_METADATA = "settings-metadata";
 
+	private static final String _VOCABULARY_GROUP_REL = "vocabulary-group-rel";
+
+	@Reference
+	private AssetVocabularyGroupRelLocalService
+		_assetVocabularyGroupRelLocalService;
+
 	@Reference
 	private AssetVocabularyLocalService _assetVocabularyLocalService;
 
 	@Reference
 	private ClassNameLocalService _classNameLocalService;
+
+	@Reference
+	private DepotEntryService _depotEntryService;
+
+	@Reference
+	private GroupLocalService _groupLocalService;
 
 	@Reference
 	private JSONFactory _jsonFactory;
