@@ -5,6 +5,7 @@
 
 package com.liferay.site.cms.site.initializer.internal.display.context;
 
+import com.liferay.asset.categories.admin.web.constants.AssetCategoriesAdminPortletKeys;
 import com.liferay.asset.kernel.model.AssetVocabulary;
 import com.liferay.asset.tags.constants.AssetTagsAdminPortletKeys;
 import com.liferay.exportimport.constants.ExportImportPortletKeys;
@@ -127,16 +128,30 @@ public class ViewVocabulariesDisplayContext {
 		return HashMapBuilder.<String, Object>put(
 			"actionItems",
 			_putAll(
-				unsafeConsumer -> unsafeConsumer.accept(
-					JSONUtil.put(
-						"href",
-						_getControlPanelPortletURL(
-							AssetTagsAdminPortletKeys.ASSET_TAGS_ADMIN)
-					).put(
-						"label",
-						LanguageUtil.get(
-							_httpServletRequest, "export-import-tags")
-					)))
+				unsafeConsumer -> {
+					unsafeConsumer.accept(
+						JSONUtil.put(
+							"href",
+							_getControlPanelPortletURL(
+								AssetCategoriesAdminPortletKeys.
+									ASSET_CATEGORIES_ADMIN)
+						).put(
+							"label",
+							LanguageUtil.get(
+								_httpServletRequest,
+								"export-import-vocabularies")
+						));
+					unsafeConsumer.accept(
+						JSONUtil.put(
+							"href",
+							_getControlPanelPortletURL(
+								AssetTagsAdminPortletKeys.ASSET_TAGS_ADMIN)
+						).put(
+							"label",
+							LanguageUtil.get(
+								_httpServletRequest, "export-import-tags")
+						));
+				})
 		).put(
 			"activeTab", "vocabularies"
 		).put(
