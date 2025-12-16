@@ -8,7 +8,6 @@ package com.liferay.asset.categories.admin.web.internal.exportimport.data.handle
 import com.liferay.asset.categories.admin.web.internal.exportimport.data.handler.helper.AssetVocabularySettingsExportHelper;
 import com.liferay.asset.categories.admin.web.internal.exportimport.data.handler.helper.AssetVocabularySettingsImportHelper;
 import com.liferay.asset.kernel.model.AssetVocabulary;
-import com.liferay.asset.kernel.model.AssetVocabularyGroupRel;
 import com.liferay.asset.kernel.service.AssetVocabularyGroupRelLocalService;
 import com.liferay.asset.kernel.service.AssetVocabularyLocalService;
 import com.liferay.depot.service.DepotEntryService;
@@ -17,6 +16,7 @@ import com.liferay.exportimport.kernel.lar.ExportImportPathUtil;
 import com.liferay.exportimport.kernel.lar.PortletDataContext;
 import com.liferay.exportimport.kernel.lar.StagedModelDataHandler;
 import com.liferay.exportimport.kernel.lar.StagedModelModifiedDateComparator;
+import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.exception.PortalException;
@@ -29,7 +29,6 @@ import com.liferay.portal.kernel.service.ClassNameLocalService;
 import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.util.GetterUtil;
-import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.StringUtil;
@@ -290,16 +289,29 @@ public class AssetVocabularyStagedModelDataHandler
 		String assetVocabularyGroupRelsPath = ExportImportPathUtil.getModelPath(
 			vocabulary, _VOCABULARY_GROUP_REL + ".json");
 
-		long[] groupIds = ListUtil.toLongArray(
-			_assetVocabularyGroupRelLocalService.
-				getAssetVocabularyGroupRelsByVocabularyId(
-					vocabulary.getVocabularyId()),
-			AssetVocabularyGroupRel::getGroupId);
-
 		JSONObject assetVocabularyGroupRelsJSONObject =
 			_jsonFactory.createJSONObject();
 
-		assetVocabularyGroupRelsJSONObject.put("groupIds", groupIds);
+		assetVocabularyGroupRelsJSONObject.put(
+			"groupKeys",
+			TransformUtil.transform(
+				_assetVocabularyGroupRelLocalService.
+					getAssetVocabularyGroupRelsByVocabularyId(
+						vocabulary.getVocabularyId()),
+				assetVocabularyGroupRel -> {
+					if (assetVocabularyGroupRel.getGroupId() == -1) {
+						return null;
+					}
+
+					Group group = _groupLocalService.fetchGroup(
+						assetVocabularyGroupRel.getGroupId());
+
+					if (group != null) {
+						return group.getGroupKey();
+					}
+
+					return null;
+				}));
 
 		vocabularyElement.addAttribute(
 			_VOCABULARY_GROUP_REL, assetVocabularyGroupRelsPath);
@@ -424,19 +436,24 @@ public class AssetVocabularyStagedModelDataHandler
 					assetVocabularyGroupRelsPath));
 
 		JSONArray assetVocabularyGroupRelsJSONArray =
-			assetVocabularyGroupRelsJSONObject.getJSONArray("groupIds");
+			assetVocabularyGroupRelsJSONObject.getJSONArray("groupKeys");
 
 		List<Long> groupIdList = new ArrayList<>();
 
 		for (int i = 0; i < assetVocabularyGroupRelsJSONArray.length(); i++) {
-			long groupId = assetVocabularyGroupRelsJSONArray.getLong(i);
+			String groupKey = assetVocabularyGroupRelsJSONArray.getString(i);
 
-			if (groupId == -1) {
+			Group group = _groupLocalService.fetchGroup(
+				portletDataContext.getCompanyGroupId(), groupKey);
+
+			if (group == null) {
 				continue;
 			}
 
-			if (_depotEntryService.fetchGroupDepotEntry(groupId) != null) {
-				groupIdList.add(groupId);
+			if (_depotEntryService.fetchGroupDepotEntry(group.getGroupId()) !=
+					null) {
+
+				groupIdList.add(group.getGroupId());
 			}
 		}
 
