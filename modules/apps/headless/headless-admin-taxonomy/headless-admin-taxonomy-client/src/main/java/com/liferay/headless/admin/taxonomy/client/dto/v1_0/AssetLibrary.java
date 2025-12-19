@@ -26,25 +26,6 @@ public class AssetLibrary implements Cloneable, Serializable {
 		return AssetLibrarySerDes.toDTO(json);
 	}
 
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-	public void setId(UnsafeSupplier<Long, Exception> idUnsafeSupplier) {
-		try {
-			id = idUnsafeSupplier.get();
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	protected Long id;
-
 	public String getName() {
 		return name;
 	}
@@ -85,6 +66,27 @@ public class AssetLibrary implements Cloneable, Serializable {
 	}
 
 	protected Map<String, String> name_i18n;
+
+	public String getScopeKey() {
+		return scopeKey;
+	}
+
+	public void setScopeKey(String scopeKey) {
+		this.scopeKey = scopeKey;
+	}
+
+	public void setScopeKey(
+		UnsafeSupplier<String, Exception> scopeKeyUnsafeSupplier) {
+
+		try {
+			scopeKey = scopeKeyUnsafeSupplier.get();
+		}
+		catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	protected String scopeKey;
 
 	@Override
 	public AssetLibrary clone() throws CloneNotSupportedException {

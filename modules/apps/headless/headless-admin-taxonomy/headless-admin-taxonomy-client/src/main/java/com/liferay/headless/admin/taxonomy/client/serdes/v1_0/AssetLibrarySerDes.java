@@ -46,16 +46,6 @@ public class AssetLibrarySerDes {
 
 		sb.append("{");
 
-		if (assetLibrary.getId() != null) {
-			if (sb.length() > 1) {
-				sb.append(", ");
-			}
-
-			sb.append("\"id\": ");
-
-			sb.append(assetLibrary.getId());
-		}
-
 		if (assetLibrary.getName() != null) {
 			if (sb.length() > 1) {
 				sb.append(", ");
@@ -80,6 +70,20 @@ public class AssetLibrarySerDes {
 			sb.append(_toJSON(assetLibrary.getName_i18n()));
 		}
 
+		if (assetLibrary.getScopeKey() != null) {
+			if (sb.length() > 1) {
+				sb.append(", ");
+			}
+
+			sb.append("\"scopeKey\": ");
+
+			sb.append("\"");
+
+			sb.append(_escape(assetLibrary.getScopeKey()));
+
+			sb.append("\"");
+		}
+
 		sb.append("}");
 
 		return sb.toString();
@@ -99,13 +103,6 @@ public class AssetLibrarySerDes {
 
 		Map<String, String> map = new TreeMap<>();
 
-		if (assetLibrary.getId() == null) {
-			map.put("id", null);
-		}
-		else {
-			map.put("id", String.valueOf(assetLibrary.getId()));
-		}
-
 		if (assetLibrary.getName() == null) {
 			map.put("name", null);
 		}
@@ -118,6 +115,13 @@ public class AssetLibrarySerDes {
 		}
 		else {
 			map.put("name_i18n", String.valueOf(assetLibrary.getName_i18n()));
+		}
+
+		if (assetLibrary.getScopeKey() == null) {
+			map.put("scopeKey", null);
+		}
+		else {
+			map.put("scopeKey", String.valueOf(assetLibrary.getScopeKey()));
 		}
 
 		return map;
@@ -138,14 +142,14 @@ public class AssetLibrarySerDes {
 
 		@Override
 		protected boolean parseMaps(String jsonParserFieldName) {
-			if (Objects.equals(jsonParserFieldName, "id")) {
-				return false;
-			}
-			else if (Objects.equals(jsonParserFieldName, "name")) {
+			if (Objects.equals(jsonParserFieldName, "name")) {
 				return false;
 			}
 			else if (Objects.equals(jsonParserFieldName, "name_i18n")) {
 				return true;
+			}
+			else if (Objects.equals(jsonParserFieldName, "scopeKey")) {
+				return false;
 			}
 
 			return false;
@@ -156,13 +160,7 @@ public class AssetLibrarySerDes {
 			AssetLibrary assetLibrary, String jsonParserFieldName,
 			Object jsonParserFieldValue) {
 
-			if (Objects.equals(jsonParserFieldName, "id")) {
-				if (jsonParserFieldValue != null) {
-					assetLibrary.setId(
-						Long.valueOf((String)jsonParserFieldValue));
-				}
-			}
-			else if (Objects.equals(jsonParserFieldName, "name")) {
+			if (Objects.equals(jsonParserFieldName, "name")) {
 				if (jsonParserFieldValue != null) {
 					assetLibrary.setName((String)jsonParserFieldValue);
 				}
@@ -171,6 +169,11 @@ public class AssetLibrarySerDes {
 				if (jsonParserFieldValue != null) {
 					assetLibrary.setName_i18n(
 						(Map<String, String>)jsonParserFieldValue);
+				}
+			}
+			else if (Objects.equals(jsonParserFieldName, "scopeKey")) {
+				if (jsonParserFieldValue != null) {
+					assetLibrary.setScopeKey((String)jsonParserFieldValue);
 				}
 			}
 		}
