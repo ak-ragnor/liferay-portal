@@ -294,7 +294,7 @@ public class KeywordResourceImpl
 			_assetTagGroupRelLocalService.setAssetTagGroupRels(
 				assetTag.getTagId(),
 				TaxonomyGroupUtil.getAssetLibraryGroupIds(
-					keyword.getAssetLibraries()));
+					keyword.getAssetLibraries(), group.getCompanyId()));
 		}
 
 		return _toKeyword(assetTag);
@@ -336,7 +336,7 @@ public class KeywordResourceImpl
 			_assetTagGroupRelLocalService.setAssetTagGroupRels(
 				assetTag.getTagId(),
 				TaxonomyGroupUtil.getAssetLibraryGroupIds(
-					keyword.getAssetLibraries()));
+					keyword.getAssetLibraries(), assetTag.getCompanyId()));
 		}
 
 		return _toKeyword(assetTag);

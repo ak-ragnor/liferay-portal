@@ -401,7 +401,8 @@ public class TaxonomyVocabularyResourceImpl
 		if (FeatureFlagManagerUtil.isEnabled("LPD-17564") && group.isCMS()) {
 			_assetVocabularyGroupRelLocalService.setAssetVocabularyGroupRels(
 				assetVocabulary.getVocabularyId(),
-				_getAssetLibraryGroupIds(taxonomyVocabulary));
+				_getAssetLibraryGroupIds(
+					group.getCompanyId(), taxonomyVocabulary));
 		}
 
 		return _toTaxonomyVocabulary(assetVocabulary);
@@ -542,7 +543,6 @@ public class TaxonomyVocabularyResourceImpl
 
 				return new AssetLibrary() {
 					{
-						setId(assetVocabularyGroupRel::getGroupId);
 						setName(
 							() -> {
 								if (group == null) {
@@ -563,6 +563,14 @@ public class TaxonomyVocabularyResourceImpl
 										isAcceptAllLanguages(),
 									group.getNameMap());
 							});
+						setScopeKey(
+							() -> {
+								if (group == null) {
+									return null;
+								}
+
+								return group.getGroupKey();
+							});
 					}
 				};
 			},
@@ -570,11 +578,11 @@ public class TaxonomyVocabularyResourceImpl
 	}
 
 	private long[] _getAssetLibraryGroupIds(
-			TaxonomyVocabulary taxonomyVocabulary)
+			long companyId, TaxonomyVocabulary taxonomyVocabulary)
 		throws Exception {
 
 		return TaxonomyGroupUtil.getAssetLibraryGroupIds(
-			taxonomyVocabulary.getAssetLibraries());
+			taxonomyVocabulary.getAssetLibraries(), companyId);
 	}
 
 	private AssetType _getAssetType(
@@ -1005,7 +1013,8 @@ public class TaxonomyVocabularyResourceImpl
 
 			_assetVocabularyGroupRelLocalService.setAssetVocabularyGroupRels(
 				assetVocabulary.getVocabularyId(),
-				_getAssetLibraryGroupIds(taxonomyVocabulary));
+				_getAssetLibraryGroupIds(
+					assetVocabulary.getCompanyId(), taxonomyVocabulary));
 		}
 
 		boolean internalVisibilityType =
