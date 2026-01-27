@@ -82,6 +82,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.Iterator;
 
 /**
  * @author Rubén Pulido
@@ -275,8 +276,7 @@ public class PageFragmentInstanceDefinitionMapper {
 			else {
 				value = _fragmentEntryConfigurationParser.getFieldValue(
 					fragmentEntryLink.getConfigurationJSONObject(),
-					fragmentEntryLink.getEditableValuesJSONObject(),
-					LocaleUtil.getMostRelevantLocale(), key);
+					fragmentEntryLink.getEditableValuesJSONObject(), key);
 			}
 
 			if (value == null) {
@@ -284,14 +284,41 @@ public class PageFragmentInstanceDefinitionMapper {
 			}
 
 			if (value instanceof JSONObject valueJSONObject) {
-				if (valueJSONObject.has("color")) {
-					value = valueJSONObject.getString("color");
+				boolean hasLocalizedValues = false;
+				Iterator<String> keys = valueJSONObject.keys();
+				while (keys.hasNext()) {
+					String keyValues = keys.next();
+					if (keyValues.contains("_")) {
+						hasLocalizedValues = true;
+						JSONObject localeJSONObject =
+							valueJSONObject.getJSONObject(keyValues);
+						if ((localeJSONObject != null) &&
+							localeJSONObject.isNull("color") &&
+							!localeJSONObject.isNull("cssClass")) {
+							valueJSONObject.put(
+								"color",
+								localeJSONObject.getString("cssClass"));
+						}
+					}
 				}
-				else {
-					JSONDeserializer<Map<String, Object>> jsonDeserializer =
-						_jsonFactory.createJSONDeserializer();
+				if (valueJSONObject.has("color")) {
+					if (!hasLocalizedValues) {
+						if (valueJSONObject.has("color")) {
+							value = valueJSONObject.getString("color");
+						}
+						else {
+							JSONDeserializer<Map<String, Object>> jsonDeserializer =
+								_jsonFactory.createJSONDeserializer();
 
-					value = jsonDeserializer.deserialize(value.toString());
+							value = jsonDeserializer.deserialize(
+								valueJSONObject.toString());
+						}
+					}
+					else {
+						JSONDeserializer<Map<String, Object>> jsonDeserializer =
+							_jsonFactory.createJSONDeserializer();
+						value = jsonDeserializer.deserialize(value.toString());
+					}
 				}
 			}
 
