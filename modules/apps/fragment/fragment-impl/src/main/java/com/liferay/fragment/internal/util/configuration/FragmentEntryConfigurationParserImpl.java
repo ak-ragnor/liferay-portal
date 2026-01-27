@@ -298,6 +298,14 @@ public class FragmentEntryConfigurationParserImpl
 		return null;
 	}
 
+	public Object getFieldValue(
+		JSONObject configurationJSONObject, JSONObject editableValuesJSONObject,
+		String name) {
+
+		return getFieldValue(
+			configurationJSONObject, editableValuesJSONObject, null, name);
+	}
+
 	@Override
 	public List<FragmentConfigurationField> getFragmentConfigurationFields(
 		JSONObject configurationJSONObject) {
@@ -437,7 +445,7 @@ public class FragmentEntryConfigurationParserImpl
 		String parsedValue = GetterUtil.getString(value);
 
 		if (fragmentConfigurationField.isLocalizable() &&
-			JSONUtil.isJSONObject(parsedValue)) {
+			JSONUtil.isJSONObject(parsedValue) && (locale != null)) {
 
 			try {
 				JSONObject valueJSONObject = _jsonFactory.createJSONObject(
@@ -454,13 +462,40 @@ public class FragmentEntryConfigurationParserImpl
 					"Unable to parse configuration value JSON", jsonException);
 			}
 		}
+		else if (StringUtil.equalsIgnoreCase(
+			fragmentConfigurationField.getType(), "text")) {
+
+			if (fragmentConfigurationField.isLocalizable() &&
+				(locale == null)) {
+
+				return _getFieldValue(
+					FragmentConfigurationFieldDataType.OBJECT, parsedValue);
+			}
+
+			FragmentConfigurationFieldDataType
+				fragmentConfigurationFieldDataType =
+				fragmentConfigurationField.
+					getFragmentConfigurationFieldDataType();
+
+			if (fragmentConfigurationFieldDataType == null) {
+				fragmentConfigurationFieldDataType =
+					FragmentConfigurationFieldDataType.STRING;
+			}
+
+			return _getFieldValue(
+				fragmentConfigurationFieldDataType, parsedValue);
+		}
 		else if (value == null) {
 			parsedValue = fragmentConfigurationField.getDefaultValue();
 		}
 
 		if (StringUtil.equalsIgnoreCase(
 				fragmentConfigurationField.getType(), "checkbox")) {
-
+			if (fragmentConfigurationField.isLocalizable() &&
+				(locale == null)) {
+				return _getFieldValue(
+					FragmentConfigurationFieldDataType.OBJECT, parsedValue);
+			}
 			return _getFieldValue(
 				FragmentConfigurationFieldDataType.BOOLEAN, parsedValue);
 		}
@@ -500,9 +535,7 @@ public class FragmentEntryConfigurationParserImpl
 		else if (StringUtil.equalsIgnoreCase(
 					fragmentConfigurationField.getType(), "length") ||
 				 StringUtil.equalsIgnoreCase(
-					 fragmentConfigurationField.getType(), "select") ||
-				 StringUtil.equalsIgnoreCase(
-					 fragmentConfigurationField.getType(), "text")) {
+					 fragmentConfigurationField.getType(), "select")) {
 
 			FragmentConfigurationFieldDataType
 				fragmentConfigurationFieldDataType =
