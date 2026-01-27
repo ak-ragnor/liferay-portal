@@ -50,6 +50,10 @@ public interface FragmentEntryConfigurationParser {
 	public List<FragmentConfigurationField> getFragmentConfigurationFields(
 		JSONObject configurationJSONObject);
 
+	public Object getFieldValue(
+		JSONObject configurationJSONObject, JSONObject editableValuesJSONObject,
+		String name);
+
 	public JSONObject translateConfiguration(
 		JSONObject jsonObject, ResourceBundle resourceBundle);
 
