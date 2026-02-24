@@ -21,7 +21,7 @@ import org.junit.runner.RunWith;
  * @author Albert Gomes Cabral
  */
 @RunWith(Arquillian.class)
-public class BrowserSnifferTemplateUpgradeProcessTest
+public class BrowserSnifferDDMTemplateTemplateUpgradeProcessTest
 	extends BaseTemplateUpgradeProcessTestCase {
 
 	@ClassRule
