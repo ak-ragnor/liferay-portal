@@ -170,6 +170,7 @@ import com.liferay.portal.kernel.systemevent.SystemEventHierarchyEntryThreadLoca
 import com.liferay.portal.kernel.templateparser.TransformerListener;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.transaction.TransactionCommitCallbackUtil;
+import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.CalendarFactoryUtil;
 import com.liferay.portal.kernel.util.Constants;
 import com.liferay.portal.kernel.util.ContentTypes;
@@ -5526,6 +5527,53 @@ public class JournalArticleLocalServiceImpl
 				article.getExpirationDate(), ContentTypes.TEXT_HTML, title,
 				description, description, null, article.getLayoutUuid(), 0, 0,
 				priority);
+
+			if (assetLinkEntryIds == null) {
+				return;
+			}
+
+			Map<Long, Integer> weightMap = new HashMap<>();
+
+			AssetEntry originalEntry = _assetEntryLocalService.fetchEntry(
+				JournalArticle.class.getName(), article.getResourcePrimKey());
+
+			if (originalEntry != null) {
+				List<AssetLink> originalAssetLinks =
+					_assetLinkLocalService.getDirectLinks(
+						originalEntry.getEntryId(),
+						AssetLinkConstants.TYPE_RELATED);
+
+				for (AssetLink originalAssetLink : originalAssetLinks) {
+					weightMap.put(
+						originalAssetLink.getEntryId2(),
+						originalAssetLink.getWeight());
+				}
+			}
+
+			long draftEntryId = assetEntry.getEntryId();
+
+			List<AssetLink> draftAssetLinks =
+				_assetLinkLocalService.getDirectLinks(
+					draftEntryId, AssetLinkConstants.TYPE_RELATED);
+
+			for (AssetLink draftAssetLink : draftAssetLinks) {
+				if (!ArrayUtil.contains(
+						assetLinkEntryIds, draftAssetLink.getEntryId2())) {
+
+					_assetLinkLocalService.deleteAssetLink(draftAssetLink);
+				}
+			}
+
+			for (long assetLinkEntryId : assetLinkEntryIds) {
+				if (assetLinkEntryId == draftEntryId) {
+					continue;
+				}
+
+				_assetLinkLocalService.updateLink(
+					userId, draftEntryId, assetLinkEntryId,
+					AssetLinkConstants.TYPE_RELATED,
+					weightMap.getOrDefault(assetLinkEntryId, 0));
+			}
 		}
 		else {
 			JournalArticleResource journalArticleResource =
@@ -5547,11 +5595,11 @@ public class JournalArticleLocalServiceImpl
 				null, null, publishDate, article.getExpirationDate(),
 				ContentTypes.TEXT_HTML, title, description, description, null,
 				article.getLayoutUuid(), 0, 0, priority);
-		}
 
-		_assetLinkLocalService.updateLinks(
-			userId, assetEntry.getEntryId(), assetLinkEntryIds,
-			AssetLinkConstants.TYPE_RELATED);
+			_assetLinkLocalService.updateLinks(
+				userId, assetEntry.getEntryId(), assetLinkEntryIds,
+				AssetLinkConstants.TYPE_RELATED);
+		}
 	}
 
 	/**
