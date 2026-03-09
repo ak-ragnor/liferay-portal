@@ -18,6 +18,7 @@ import com.liferay.asset.kernel.service.AssetCategoryLocalService;
 import com.liferay.asset.kernel.service.AssetEntryLocalService;
 import com.liferay.asset.kernel.service.AssetTagLocalService;
 import com.liferay.asset.kernel.service.AssetVocabularyLocalService;
+import com.liferay.asset.link.constants.AssetLinkConstants;
 import com.liferay.asset.link.model.AssetLink;
 import com.liferay.asset.link.service.AssetLinkLocalService;
 import com.liferay.data.engine.rest.dto.v2_0.DataDefinition;
@@ -151,6 +152,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -2372,6 +2374,77 @@ public class JournalArticleLocalServiceTest {
 			false, true, ServiceContextTestUtil.getServiceContext());
 
 		Assert.assertEquals(date, journalArticle2.getDisplayDate());
+	}
+
+	@Test
+	public void testUpdateAssetPreserveAssetLinkWeight() throws Exception {
+		JournalArticle article1 = JournalTestUtil.addArticle(
+			_group.getGroupId(),
+			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
+		JournalArticle article2 = JournalTestUtil.addArticle(
+			_group.getGroupId(),
+			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
+
+		AssetEntry assetEntry1 = _assetEntryLocalService.getEntry(
+			JournalArticle.class.getName(), article1.getResourcePrimKey());
+		AssetEntry assetEntry2 = _assetEntryLocalService.getEntry(
+			JournalArticle.class.getName(), article2.getResourcePrimKey());
+
+		int weight = 7;
+
+		_assetLinkLocalService.updateLink(
+			TestPropsValues.getUserId(), assetEntry1.getEntryId(),
+			assetEntry2.getEntryId(), AssetLinkConstants.TYPE_RELATED, weight);
+
+		List<AssetLink> originalAssetLinks = _assetLinkLocalService.getLinks(
+			assetEntry1.getEntryId());
+
+		AssetLink originalAssetLink = originalAssetLinks.get(0);
+
+		Assert.assertNotNull(originalAssetLink);
+		Assert.assertEquals(weight, originalAssetLink.getWeight());
+
+		ServiceContext serviceContext =
+			ServiceContextTestUtil.getServiceContext(
+				_group.getGroupId(), TestPropsValues.getUserId());
+
+		serviceContext.setAssetLinkEntryIds(
+			new long[] {assetEntry2.getEntryId()});
+		serviceContext.setWorkflowAction(WorkflowConstants.ACTION_SAVE_DRAFT);
+
+		JournalArticle draftArticle = JournalTestUtil.updateArticle(
+			article1, RandomTestUtil.randomString(), article1.getContent(),
+			false, false, serviceContext);
+
+		AssetEntry draftAssetEntry = _assetEntryLocalService.getEntry(
+			JournalArticle.class.getName(), draftArticle.getPrimaryKey());
+
+		List<AssetLink> draftAssetLinks = _assetLinkLocalService.getLinks(
+			draftAssetEntry.getEntryId(), AssetLinkConstants.TYPE_RELATED);
+
+		AssetLink draftAssetLink = draftAssetLinks.get(0);
+
+		Assert.assertNotNull(draftAssetLink);
+		Assert.assertEquals(weight, draftAssetLink.getWeight());
+
+		JournalArticle approvedArticle =
+			_journalArticleLocalService.updateStatus(
+				TestPropsValues.getUserId(), draftArticle.getId(),
+				WorkflowConstants.STATUS_APPROVED, new HashMap<>(),
+				ServiceContextTestUtil.getServiceContext(
+					_group.getGroupId(), TestPropsValues.getUserId()));
+
+		AssetEntry approvedAssetEntry = _assetEntryLocalService.getEntry(
+			JournalArticle.class.getName(),
+			approvedArticle.getResourcePrimKey());
+
+		List<AssetLink> approvedAssetLinks = _assetLinkLocalService.getLinks(
+			approvedAssetEntry.getEntryId());
+
+		AssetLink approvedAssetLink = approvedAssetLinks.get(0);
+
+		Assert.assertNotNull(approvedAssetLink);
+		Assert.assertEquals(weight, approvedAssetLink.getWeight());
 	}
 
 	@Test
