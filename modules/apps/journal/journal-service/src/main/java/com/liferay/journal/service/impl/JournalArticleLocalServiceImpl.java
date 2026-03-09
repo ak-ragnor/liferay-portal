@@ -5510,14 +5510,12 @@ public class JournalArticleLocalServiceImpl
 			visible = false;
 		}
 
-		boolean addDraftAssetEntry = _addDraftAssetEntry(article);
-
 		AssetEntry assetEntry = null;
 
 		String title = article.getTitleMapAsXML();
 		String description = article.getDescriptionMapAsXML();
 
-		if (addDraftAssetEntry) {
+		if (_addDraftAssetEntry(article)) {
 			assetEntry = _assetEntryLocalService.updateEntry(
 				userId, article.getGroupId(), article.getCreateDate(),
 				article.getModifiedDate(), JournalArticle.class.getName(),
