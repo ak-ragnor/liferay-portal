@@ -5515,7 +5515,7 @@ public class JournalArticleLocalServiceImpl
 		String title = article.getTitleMapAsXML();
 		String description = article.getDescriptionMapAsXML();
 
-		if (_addDraftAssetEntry(article)) {
+		if (_shouldAddDraftAssetEntry(article)) {
 			assetEntry = _assetEntryLocalService.updateEntry(
 				userId, article.getGroupId(), article.getCreateDate(),
 				article.getModifiedDate(), JournalArticle.class.getName(),
@@ -7484,33 +7484,6 @@ public class JournalArticleLocalServiceImpl
 			journalArticleLocalization);
 	}
 
-	private boolean _addDraftAssetEntry(JournalArticle journalArticle) {
-		if (journalArticle.isApproved() ||
-			(journalArticle.getVersion() ==
-				JournalArticleConstants.VERSION_DEFAULT)) {
-
-			return false;
-		}
-
-		AssetEntry assetEntry = _assetEntryLocalService.fetchEntry(
-			JournalArticle.class.getName(),
-			journalArticle.getResourcePrimKey());
-
-		if (assetEntry == null) {
-			return false;
-		}
-
-		int approvedArticlesCount = journalArticlePersistence.countByG_A_ST(
-			journalArticle.getGroupId(), journalArticle.getArticleId(),
-			JournalArticleConstants.ASSET_ENTRY_CREATION_STATUSES);
-
-		if (approvedArticlesCount == 0) {
-			return false;
-		}
-
-		return true;
-	}
-
 	private Map<Locale, String> _checkFriendlyURLMap(
 		Locale defaultLocale, Map<Locale, String> friendlyURLMap,
 		Map<Locale, String> titleMap) {
@@ -8560,6 +8533,33 @@ public class JournalArticleLocalServiceImpl
 
 				return null;
 			});
+	}
+
+	private boolean _shouldAddDraftAssetEntry(JournalArticle journalArticle) {
+		if (journalArticle.isApproved() ||
+			(journalArticle.getVersion() ==
+				JournalArticleConstants.VERSION_DEFAULT)) {
+
+			return false;
+		}
+
+		AssetEntry assetEntry = _assetEntryLocalService.fetchEntry(
+			JournalArticle.class.getName(),
+			journalArticle.getResourcePrimKey());
+
+		if (assetEntry == null) {
+			return false;
+		}
+
+		int approvedArticlesCount = journalArticlePersistence.countByG_A_ST(
+			journalArticle.getGroupId(), journalArticle.getArticleId(),
+			JournalArticleConstants.ASSET_ENTRY_CREATION_STATUSES);
+
+		if (approvedArticlesCount == 0) {
+			return false;
+		}
+
+		return true;
 	}
 
 	private String _toJSON(
