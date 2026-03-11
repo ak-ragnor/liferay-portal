@@ -107,6 +107,34 @@ public class BasicComponentFragmentCollectionContributorTest {
 	}
 
 	@Test
+	@TestInfo("LPD-79331")
+	public void testParagraphRender() throws Exception {
+		Layout layout = LayoutTestUtil.addTypeContentLayout(_group);
+
+		FragmentEntry fragmentEntry =
+			_fragmentCollectionContributorRegistry.getFragmentEntry(
+				"BASIC_COMPONENT-paragraph");
+
+		Document document = Jsoup.parseBodyFragment(
+			_fragmentEntryProcessorRegistry.processFragmentEntryLinkHTML(
+				_fragmentEntryLinkService.addFragmentEntryLink(
+					null, _group.getGroupId(), null,
+					fragmentEntry.getExternalReferenceCode(), null, 0,
+					layout.getPlid(), fragmentEntry.getCss(),
+					fragmentEntry.getHtml(), fragmentEntry.getJs(),
+					fragmentEntry.getConfiguration(), StringPool.BLANK,
+					StringPool.BLANK, 0, null, fragmentEntry.getType(),
+					ServiceContextTestUtil.getServiceContext(
+						_group.getGroupId())),
+				_getFragmentEntryProcessorContext(
+					layout, LocaleUtil.getMostRelevantLocale())));
+
+		Elements paragraph = document.select("p");
+
+		Assert.assertTrue(paragraph.size() == 1);
+	}
+
+	@Test
 	@TestInfo("LPD-26242")
 	public void testSliderAccessibility() throws Exception {
 		Layout layout = LayoutTestUtil.addTypeContentLayout(_group);
