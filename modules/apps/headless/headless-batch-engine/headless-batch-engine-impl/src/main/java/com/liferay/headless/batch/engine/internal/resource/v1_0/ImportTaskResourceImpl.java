@@ -507,6 +507,10 @@ public class ImportTaskResourceImpl extends BaseImportTaskResourceImpl {
 			parameters.put("updateStrategy", updateStrategy);
 		}
 
+		parameters.put(
+			"preferredLanguageId",
+			contextAcceptLanguage.getPreferredLanguageId());
+
 		BatchEngineImportTask batchEngineImportTask =
 			_batchEngineImportTaskService.addBatchEngineImportTask(
 				externalReferenceCode, contextCompany.getCompanyId(),
