@@ -108,7 +108,9 @@ public class BatchEngineTaskExecutorUtil {
 		batchEngineTaskItemDelegate.setContextUriInfo(builder.build());
 
 		batchEngineTaskItemDelegate.setContextUser(user);
-		batchEngineTaskItemDelegate.setLanguageId(user.getLanguageId());
+		batchEngineTaskItemDelegate.setLanguageId(
+			(String)parameters.getOrDefault(
+				"preferredLanguageId", user.getLanguageId()));
 	}
 
 }
