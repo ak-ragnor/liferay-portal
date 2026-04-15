@@ -2946,6 +2946,9 @@ public class StructuredContentResourceTest
 		_assertData(
 			patchContentFieldValue_I18n,
 			GetterUtil.getString(postFrenchData.get("data")), "fr-FR");
+
+		_testPostSiteStructuredContentBatchWithPartialUpdate(
+			patchStructuredContent);
 	}
 
 	private void _testPatchStructuredContentWithRandomTitle() throws Exception {
@@ -3044,6 +3047,85 @@ public class StructuredContentResourceTest
 								String.valueOf(
 									_randomStructuredContent(
 										LocaleUtil.getDefault(), true))))
+					).getContent()));
+
+		Assert.assertEquals(1, jsonObject.getLong("processedItemsCount"));
+		Assert.assertEquals(1, jsonObject.getLong("totalItemsCount"));
+	}
+
+	private void _testPostSiteStructuredContentBatchWithPartialUpdate(
+			StructuredContent patchStructuredContent)
+		throws Exception {
+
+		User user = UserTestUtil.addGroupAdminUser(testGroup);
+
+		user.setLanguageId("es_ES");
+
+		user = _userLocalService.updateUser(user);
+
+		user = _userLocalService.updatePassword(
+			user.getUserId(), PropsValues.DEFAULT_ADMIN_PASSWORD,
+			PropsValues.DEFAULT_ADMIN_PASSWORD, false, true);
+
+		StructuredContentResource.Builder builder =
+			StructuredContentResource.builder();
+
+		StructuredContentResource structuredContentResource =
+			builder.authentication(
+				user.getEmailAddress(), PropsValues.DEFAULT_ADMIN_PASSWORD
+			).locale(
+				new Locale("fr", "FR")
+			).parameter(
+				"updateStrategy", "PARTIAL_UPDATE"
+			).build();
+
+		Map<String, ContentFieldValue> contentFieldValues = HashMapBuilder.put(
+			"en-US",
+			(ContentFieldValue)new ContentFieldValue() {
+
+				{
+					data = RandomTestUtil.randomString();
+				}
+			}
+		).put(
+			"es-ES",
+			(ContentFieldValue)new ContentFieldValue() {
+
+				{
+					data = RandomTestUtil.randomString();
+				}
+			}
+		).put(
+			"fr-FR",
+			(ContentFieldValue)new ContentFieldValue() {
+
+				{
+					data = RandomTestUtil.randomString();
+				}
+			}
+		).build();
+
+		patchStructuredContent.setContentFields(
+			new ContentField[] {
+				new ContentField() {
+					{
+						contentFieldValue = contentFieldValues.get("fr-FR");
+						contentFieldValue_i18n = contentFieldValues;
+						fieldReference = "MyText";
+						name = "MyText";
+					}
+				}
+			});
+
+		JSONObject jsonObject = _waitForFinish(
+			"COMPLETED", true,
+			JSONFactoryUtil.createJSONObject(
+				structuredContentResource.
+					postSiteStructuredContentBatchHttpResponse(
+						testGroup.getGroupId(), null,
+						JSONUtil.putAll(
+							JSONFactoryUtil.createJSONObject(
+								String.valueOf(patchStructuredContent)))
 					).getContent()));
 
 		Assert.assertEquals(1, jsonObject.getLong("processedItemsCount"));
