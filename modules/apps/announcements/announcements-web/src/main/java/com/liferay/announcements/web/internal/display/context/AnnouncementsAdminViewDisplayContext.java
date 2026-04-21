@@ -11,6 +11,8 @@ import com.liferay.announcements.web.internal.search.AnnouncementsEntryChecker;
 import com.liferay.announcements.web.internal.util.AnnouncementsUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.dao.orm.DynamicQuery;
+import com.liferay.portal.kernel.dao.orm.RestrictionsFactoryUtil;
 import com.liferay.portal.kernel.dao.search.SearchContainer;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.language.LanguageUtil;
@@ -25,6 +27,8 @@ import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.service.permission.PortalPermissionUtil;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.OrderByComparator;
+import com.liferay.portal.kernel.util.OrderByComparatorFactoryUtil;
 import com.liferay.portal.kernel.util.ParamUtil;
 import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.StringUtil;
@@ -185,6 +189,14 @@ public class AnnouncementsAdminViewDisplayContext {
 
 		announcementsEntriesSearchContainer.setId(getSearchContainerId());
 
+		String orderByCol = ParamUtil.getString(
+			_httpServletRequest, "orderByCol", "modified-date");
+		String orderByType = ParamUtil.getString(
+			_httpServletRequest, "orderByType", "desc");
+
+		announcementsEntriesSearchContainer.setOrderByCol(orderByCol);
+		announcementsEntriesSearchContainer.setOrderByType(orderByType);
+
 		long classNameId = 0;
 		long classPK = 0;
 
@@ -200,15 +212,15 @@ public class AnnouncementsAdminViewDisplayContext {
 		long announcementsClassPK = classPK;
 
 		announcementsEntriesSearchContainer.setResultsAndTotal(
-			() -> AnnouncementsEntryLocalServiceUtil.getEntries(
-				_themeDisplay.getCompanyId(), announcementsClassNameId,
-				announcementsClassPK, Objects.equals(getNavigation(), "alerts"),
+			() -> AnnouncementsEntryLocalServiceUtil.dynamicQuery(
+				_getDynamicQuery(
+					announcementsClassNameId, announcementsClassPK),
 				announcementsEntriesSearchContainer.getStart(),
-				announcementsEntriesSearchContainer.getEnd()),
-			AnnouncementsEntryLocalServiceUtil.getEntriesCount(
-				_themeDisplay.getCompanyId(), announcementsClassNameId,
-				announcementsClassPK,
-				Objects.equals(getNavigation(), "alerts")));
+				announcementsEntriesSearchContainer.getEnd(),
+				_getOrderByComparator(orderByCol, orderByType)),
+			(int)AnnouncementsEntryLocalServiceUtil.dynamicQueryCount(
+				_getDynamicQuery(
+					announcementsClassNameId, announcementsClassPK)));
 
 		announcementsEntriesSearchContainer.setRowChecker(
 			new AnnouncementsEntryChecker(
@@ -227,6 +239,45 @@ public class AnnouncementsAdminViewDisplayContext {
 
 	public UUID getUuid() {
 		return _UUID;
+	}
+
+	private DynamicQuery _getDynamicQuery(long classNameId, long classPK) {
+		DynamicQuery dynamicQuery =
+			AnnouncementsEntryLocalServiceUtil.dynamicQuery();
+
+		dynamicQuery.add(
+			RestrictionsFactoryUtil.eq(
+				"companyId", _themeDisplay.getCompanyId()));
+		dynamicQuery.add(
+			RestrictionsFactoryUtil.eq("classNameId", classNameId));
+		dynamicQuery.add(RestrictionsFactoryUtil.eq("classPK", classPK));
+		dynamicQuery.add(
+			RestrictionsFactoryUtil.eq(
+				"alert", Objects.equals(getNavigation(), "alerts")));
+
+		return dynamicQuery;
+	}
+
+	private OrderByComparator<AnnouncementsEntry> _getOrderByComparator(
+		String orderByCol, String orderByType) {
+
+		String columnName = "modifiedDate";
+
+		if (orderByCol.equals("display-date")) {
+			columnName = "displayDate";
+		}
+		else if (orderByCol.equals("expiration-date")) {
+			columnName = "expirationDate";
+		}
+		else if (orderByCol.equals("title")) {
+			columnName = "title";
+		}
+		else if (orderByCol.equals("type")) {
+			columnName = "type";
+		}
+
+		return OrderByComparatorFactoryUtil.create(
+			"AnnouncementsEntry", columnName, orderByType.equals("asc"));
 	}
 
 	private static final UUID _UUID = UUID.fromString(
