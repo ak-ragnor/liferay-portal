@@ -11,8 +11,6 @@ import com.liferay.announcements.web.internal.search.AnnouncementsEntryChecker;
 import com.liferay.announcements.web.internal.util.AnnouncementsUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
-import com.liferay.portal.kernel.dao.orm.DynamicQuery;
-import com.liferay.portal.kernel.dao.orm.RestrictionsFactoryUtil;
 import com.liferay.portal.kernel.dao.search.SearchContainer;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.language.LanguageUtil;
@@ -211,16 +209,18 @@ public class AnnouncementsAdminViewDisplayContext {
 		long announcementsClassNameId = classNameId;
 		long announcementsClassPK = classPK;
 
+		boolean alert = Objects.equals(getNavigation(), "alerts");
+
 		announcementsEntriesSearchContainer.setResultsAndTotal(
-			() -> AnnouncementsEntryLocalServiceUtil.dynamicQuery(
-				_getDynamicQuery(
-					announcementsClassNameId, announcementsClassPK),
+			() -> AnnouncementsEntryLocalServiceUtil.getEntries(
+				_themeDisplay.getCompanyId(), announcementsClassNameId,
+				announcementsClassPK, alert,
 				announcementsEntriesSearchContainer.getStart(),
 				announcementsEntriesSearchContainer.getEnd(),
 				_getOrderByComparator(orderByCol, orderByType)),
-			(int)AnnouncementsEntryLocalServiceUtil.dynamicQueryCount(
-				_getDynamicQuery(
-					announcementsClassNameId, announcementsClassPK)));
+			AnnouncementsEntryLocalServiceUtil.getEntriesCount(
+				_themeDisplay.getCompanyId(), announcementsClassNameId,
+				announcementsClassPK, alert));
 
 		announcementsEntriesSearchContainer.setRowChecker(
 			new AnnouncementsEntryChecker(
@@ -239,23 +239,6 @@ public class AnnouncementsAdminViewDisplayContext {
 
 	public UUID getUuid() {
 		return _UUID;
-	}
-
-	private DynamicQuery _getDynamicQuery(long classNameId, long classPK) {
-		DynamicQuery dynamicQuery =
-			AnnouncementsEntryLocalServiceUtil.dynamicQuery();
-
-		dynamicQuery.add(
-			RestrictionsFactoryUtil.eq(
-				"companyId", _themeDisplay.getCompanyId()));
-		dynamicQuery.add(
-			RestrictionsFactoryUtil.eq("classNameId", classNameId));
-		dynamicQuery.add(RestrictionsFactoryUtil.eq("classPK", classPK));
-		dynamicQuery.add(
-			RestrictionsFactoryUtil.eq(
-				"alert", Objects.equals(getNavigation(), "alerts")));
-
-		return dynamicQuery;
 	}
 
 	private OrderByComparator<AnnouncementsEntry> _getOrderByComparator(
