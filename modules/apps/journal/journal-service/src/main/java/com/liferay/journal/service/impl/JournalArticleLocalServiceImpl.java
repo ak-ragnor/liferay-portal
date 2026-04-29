@@ -4715,10 +4715,7 @@ public class JournalArticleLocalServiceImpl
 		if (displayDate == null) {
 			displayDate = article.getDisplayDate();
 
-			if ((displayDate != null) && displayDate.before(new Date())) {
-				displayDate = article.getDisplayDate();
-			}
-			else {
+			if (displayDate == null) {
 				Calendar calendar = CalendarFactoryUtil.getCalendar(
 					user.getTimeZone());
 
