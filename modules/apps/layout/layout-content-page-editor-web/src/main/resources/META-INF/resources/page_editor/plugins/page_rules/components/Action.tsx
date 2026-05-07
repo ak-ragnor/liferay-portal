@@ -118,6 +118,12 @@ export default function Action({
 				items={actionTypes}
 				onErrorChange={onErrorChange}
 				onSelectionChange={(type) => {
+					if (action.readOnly) {
+						onActionChange({...action, type});
+
+						return;
+					}
+
 					const {itemId: _, ...newAction} = action;
 
 					onActionChange({...newAction, type});
