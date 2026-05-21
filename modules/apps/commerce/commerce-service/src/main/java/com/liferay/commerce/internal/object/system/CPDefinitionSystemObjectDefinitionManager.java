@@ -28,8 +28,8 @@ import com.liferay.petra.sql.dsl.Column;
 import com.liferay.petra.sql.dsl.Table;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.json.JSONObject;
-import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.model.BaseModel;
+import com.liferay.portal.kernel.model.PersistedModel;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.search.Sort;
 import com.liferay.portal.kernel.search.filter.Filter;
@@ -269,6 +269,14 @@ public class CPDefinitionSystemObjectDefinitionManager
 	}
 
 	@Override
+	public PersistedModel getPersistedModel(long primaryKey)
+		throws PortalException {
+
+		return _cpDefinitionLocalService.getCPDefinitionByCProductId(
+			primaryKey);
+	}
+
+	@Override
 	public Column<?, Long> getPrimaryKeyColumn() {
 		return CPDefinitionTable.INSTANCE.CProductId;
 	}
@@ -342,8 +350,13 @@ public class CPDefinitionSystemObjectDefinitionManager
 			cpDefinition.getCProductId(), _toProduct(values));
 
 		setExtendedProperties(
-			Product.class.getName(), JSONUtil.put("id", primaryKey), user,
-			values);
+			Product.class.getName(),
+			new Product() {
+				{
+					setProductId(cpDefinition::getCProductId);
+				}
+			},
+			user, values);
 	}
 
 	private ProductResource _buildProductResource(

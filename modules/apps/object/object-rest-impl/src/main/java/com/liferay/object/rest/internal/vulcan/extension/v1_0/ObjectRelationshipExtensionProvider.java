@@ -95,7 +95,7 @@ public class ObjectRelationshipExtensionProvider
 					return null;
 				}
 
-				long primaryKey = getPrimaryKey(entity);
+				long primaryKey = getPrimaryKey(objectDefinition, entity);
 
 				if (_isManyToOneObjectRelationship(
 						objectDefinition, objectRelationship,
@@ -198,7 +198,7 @@ public class ObjectRelationshipExtensionProvider
 				"No object definition exists with class name " + className);
 		}
 
-		long primaryKey = getPrimaryKey(entity);
+		long primaryKey = getPrimaryKey(objectDefinition, entity);
 
 		for (Map.Entry<String, Serializable> entry :
 				extendedProperties.entrySet()) {

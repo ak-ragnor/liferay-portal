@@ -49,7 +49,7 @@ public class ObjectEntryExtensionProvider extends BaseObjectExtensionProvider {
 
 			return _objectEntryLocalService.
 				getExtensionDynamicObjectDefinitionTableValues(
-					objectDefinition, getPrimaryKey(entity));
+					objectDefinition, getPrimaryKey(objectDefinition, entity));
 		}
 		catch (Exception exception) {
 			if (_log.isDebugEnabled()) {
@@ -148,8 +148,8 @@ public class ObjectEntryExtensionProvider extends BaseObjectExtensionProvider {
 
 			_objectEntryLocalService.
 				addOrUpdateExtensionDynamicObjectDefinitionTableValues(
-					userId, objectDefinition, getPrimaryKey(entity),
-					extendedProperties,
+					userId, objectDefinition,
+					getPrimaryKey(objectDefinition, entity), extendedProperties,
 					new ServiceContext() {
 						{
 							setCompanyId(companyId);
