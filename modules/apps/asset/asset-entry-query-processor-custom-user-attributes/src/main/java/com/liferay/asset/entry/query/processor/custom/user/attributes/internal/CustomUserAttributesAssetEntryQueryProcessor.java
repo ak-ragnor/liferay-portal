@@ -32,7 +32,6 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -118,13 +117,22 @@ public class CustomUserAttributesAssetEntryQueryProcessor
 					new String[0], QueryUtil.ALL_POS, QueryUtil.ALL_POS);
 
 			for (AssetCategory assetCategory : assetCategories) {
+				String assetCategoryName = assetCategory.getName();
+
+				if (!StringUtil.equalsIgnoreCase(
+						assetCategoryName, userCustomFieldValueString)) {
+
+					continue;
+				}
+
 				AssetVocabulary assetVocabulary =
 					_assetVocabularyLocalService.fetchAssetVocabulary(
 						assetCategory.getVocabularyId());
 
-				if (Objects.equals(
-						StringUtil.toLowerCase(customUserAttributeName),
-						StringUtil.toLowerCase(assetVocabulary.getName()))) {
+				String assetVocabularyName = assetVocabulary.getName();
+
+				if (StringUtil.equalsIgnoreCase(
+						customUserAttributeName, assetVocabularyName)) {
 
 					allCategoryIdsList.add(assetCategory.getCategoryId());
 				}
