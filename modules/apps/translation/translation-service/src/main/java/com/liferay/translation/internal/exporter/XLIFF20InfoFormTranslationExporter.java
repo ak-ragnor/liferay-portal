@@ -14,12 +14,14 @@ import com.liferay.info.item.InfoItemReference;
 import com.liferay.petra.string.CharPool;
 import com.liferay.petra.string.StringPool;
 import com.liferay.petra.string.StringUtil;
+import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.xml.Document;
 import com.liferay.portal.kernel.xml.Element;
 import com.liferay.portal.kernel.xml.SAXReaderUtil;
 import com.liferay.translation.exporter.TranslationInfoItemFieldValuesExporter;
 import com.liferay.translation.info.field.TranslationInfoFieldChecker;
+import com.liferay.translation.internal.util.XLIFF20InlineCodeWriter;
 import com.liferay.translation.internal.util.XLIFFExporterUtil;
 
 import java.io.ByteArrayInputStream;
@@ -31,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -111,10 +114,34 @@ public class XLIFF20InfoFormTranslationExporter
 
 			unitElement.addAttribute("id", entry.getKey());
 
-			for (InfoFieldValue<Object> infoFieldValue : entry.getValue()) {
-				_addInfoFieldValue(
-					infoFieldValue, unitElement, sourceLocale, targetLocale);
+			List<InfoFieldValue<Object>> infoFieldValues = entry.getValue();
+
+			XLIFF20InlineCodeWriter xliff20InlineCodeWriter = null;
+
+			InfoFieldValue<Object> firstInfoFieldValue = infoFieldValues.get(0);
+
+			if (XLIFFExporterUtil.isProtectedHTMLInfoField(
+					firstInfoFieldValue.getInfoField())) {
+
+				xliff20InlineCodeWriter = new XLIFF20InlineCodeWriter(
+					unitElement);
 			}
+
+			for (InfoFieldValue<Object> infoFieldValue : infoFieldValues) {
+				_addInfoFieldValue(
+					infoFieldValue, unitElement, sourceLocale, targetLocale,
+					xliff20InlineCodeWriter);
+			}
+
+			if (xliff20InlineCodeWriter != null) {
+				xliff20InlineCodeWriter.finish();
+			}
+		}
+
+		if (FeatureFlagManagerUtil.isEnabled("LPP-65073")) {
+			String xml = document.asXML();
+
+			return new ByteArrayInputStream(xml.getBytes());
 		}
 
 		String formattedString = document.formattedString();
@@ -129,19 +156,33 @@ public class XLIFF20InfoFormTranslationExporter
 
 	private void _addInfoFieldValue(
 		InfoFieldValue<Object> infoFieldValue, Element unitElement,
-		Locale sourceLocale, Locale targetLocale) {
+		Locale sourceLocale, Locale targetLocale,
+		XLIFF20InlineCodeWriter xliff20InlineCodeWriter) {
 
 		Element segmentElement = unitElement.addElement("segment");
 
 		Element sourceElement = segmentElement.addElement("source");
 
-		sourceElement.addCDATA(
-			_getStringValue(infoFieldValue.getValue(sourceLocale)));
+		if (xliff20InlineCodeWriter != null) {
+			xliff20InlineCodeWriter.write(
+				sourceElement,
+				_getStringValue(infoFieldValue.getValue(sourceLocale)));
+		}
+		else {
+			sourceElement.addCDATA(
+				_getStringValue(infoFieldValue.getValue(sourceLocale)));
+		}
 
 		Element targetElement = segmentElement.addElement("target");
 
+		BiConsumer<Element, String> inlineCodeWriter = null;
+
+		if (xliff20InlineCodeWriter != null) {
+			inlineCodeWriter = xliff20InlineCodeWriter::write;
+		}
+
 		XLIFFExporterUtil.addTargetValue(
-			targetElement, infoFieldValue, targetLocale);
+			targetElement, infoFieldValue, targetLocale, inlineCodeWriter);
 	}
 
 	private String _getStringValue(Object value) {
