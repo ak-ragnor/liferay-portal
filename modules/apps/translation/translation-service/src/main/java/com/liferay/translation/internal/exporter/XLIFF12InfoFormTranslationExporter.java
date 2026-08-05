@@ -21,6 +21,7 @@ import com.liferay.portal.kernel.xml.Element;
 import com.liferay.portal.kernel.xml.SAXReaderUtil;
 import com.liferay.translation.exporter.TranslationInfoItemFieldValuesExporter;
 import com.liferay.translation.info.field.TranslationInfoFieldChecker;
+import com.liferay.translation.internal.util.XLIFF12InlineCodeWriter;
 import com.liferay.translation.internal.util.XLIFFExporterUtil;
 
 import java.io.ByteArrayInputStream;
@@ -34,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -118,14 +120,26 @@ public class XLIFF12InfoFormTranslationExporter
 
 			Element transUnitElement = bodyElement.addElement("trans-unit");
 
+			List<InfoFieldValue<Object>> infoFieldValues = entry.getValue();
+
+			XLIFF12InlineCodeWriter xliff12InlineCodeWriter = null;
+
+			InfoFieldValue<Object> firstInfoFieldValue = infoFieldValues.get(0);
+
+			if (XLIFFExporterUtil.isProtectedHTMLInfoField(
+					firstInfoFieldValue.getInfoField())) {
+
+				transUnitElement.addAttribute("datatype", "html");
+
+				xliff12InlineCodeWriter = new XLIFF12InlineCodeWriter();
+			}
+
 			transUnitElement.addAttribute("id", entry.getKey());
 
 			Element sourceElement = transUnitElement.addElement("source");
 
 			sourceElement.addAttribute(
 				"xml:lang", fileElement.attributeValue("source-language"));
-
-			List<InfoFieldValue<Object>> infoFieldValues = entry.getValue();
 
 			StringBundler sb = new StringBundler(infoFieldValues.size());
 
@@ -136,7 +150,13 @@ public class XLIFF12InfoFormTranslationExporter
 					(value != null) ? value.toString() : StringPool.BLANK);
 			}
 
-			sourceElement.addCDATA(_getStringValue(sb));
+			if (xliff12InlineCodeWriter != null) {
+				xliff12InlineCodeWriter.write(
+					sourceElement, _getStringValue(sb));
+			}
+			else {
+				sourceElement.addCDATA(_getStringValue(sb));
+			}
 
 			if (infoFieldValues.size() > 1) {
 				Element segSourceElement = transUnitElement.addElement(
@@ -149,8 +169,16 @@ public class XLIFF12InfoFormTranslationExporter
 
 					mrkElement.addAttribute("mid", String.valueOf(mid));
 					mrkElement.addAttribute("mtype", "seg");
-					mrkElement.addCDATA(
-						(String)infoFieldValue.getValue(sourceLocale));
+
+					if (xliff12InlineCodeWriter != null) {
+						xliff12InlineCodeWriter.write(
+							mrkElement,
+							(String)infoFieldValue.getValue(sourceLocale));
+					}
+					else {
+						mrkElement.addCDATA(
+							(String)infoFieldValue.getValue(sourceLocale));
+					}
 
 					mid++;
 				}
@@ -160,6 +188,12 @@ public class XLIFF12InfoFormTranslationExporter
 
 			targetElement.addAttribute(
 				"xml:lang", fileElement.attributeValue("target-language"));
+
+			BiConsumer<Element, String> inlineCodeWriter = null;
+
+			if (xliff12InlineCodeWriter != null) {
+				inlineCodeWriter = xliff12InlineCodeWriter::write;
+			}
 
 			if (infoFieldValues.size() > 1) {
 				int mid = 0;
@@ -171,16 +205,16 @@ public class XLIFF12InfoFormTranslationExporter
 					mrkElement.addAttribute("mtype", "seg");
 
 					XLIFFExporterUtil.addTargetValue(
-						mrkElement, infoFieldValue, targetLocale);
+						mrkElement, infoFieldValue, targetLocale,
+						inlineCodeWriter);
 
 					mid++;
 				}
 			}
 			else {
-				InfoFieldValue<Object> infoFieldValue = infoFieldValues.get(0);
-
 				XLIFFExporterUtil.addTargetValue(
-					targetElement, infoFieldValue, targetLocale);
+					targetElement, firstInfoFieldValue, targetLocale,
+					inlineCodeWriter);
 			}
 		}
 
