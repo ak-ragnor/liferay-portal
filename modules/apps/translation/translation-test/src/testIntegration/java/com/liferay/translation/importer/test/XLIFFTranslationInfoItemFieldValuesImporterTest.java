@@ -105,6 +105,24 @@ public class XLIFFTranslationInfoItemFieldValuesImporterTest {
 	}
 
 	@Test
+	public void testImportXLIFF12PreservesInlineCodes() throws Exception {
+		InfoItemFieldValues infoItemFieldValues =
+			_xliffTranslationInfoItemFieldValuesImporter.
+				importInfoItemFieldValues(
+					_group.getGroupId(),
+					new InfoItemReference(JournalArticle.class.getName(), 122),
+					TranslationTestUtil.readFileToInputStream(
+						"test-journal-article-122-inline-codes-v12.xlf"));
+
+		InfoFieldValue<Object> infoFieldValue =
+			infoItemFieldValues.getInfoFieldValue("content");
+
+		Assert.assertEquals(
+			"<p>Hola <b>mundo</b> &amp; mas</p>",
+			infoFieldValue.getValue(LocaleUtil.SPAIN));
+	}
+
+	@Test
 	public void testImportXLIFF12VersionDocument() throws Exception {
 		InfoItemFieldValues infoItemFieldValues =
 			_xliffTranslationInfoItemFieldValuesImporter.
@@ -199,6 +217,37 @@ public class XLIFFTranslationInfoItemFieldValuesImporterTest {
 
 		Assert.assertEquals(
 			infoFieldValues.toString(), 1, infoFieldValues.size());
+	}
+
+	@Test
+	public void testImportXLIFF20PreservesInlineCodes() throws Exception {
+		InfoItemFieldValues infoItemFieldValues =
+			_xliffTranslationInfoItemFieldValuesImporter.
+				importInfoItemFieldValues(
+					_group.getGroupId(),
+					new InfoItemReference(JournalArticle.class.getName(), 122),
+					TranslationTestUtil.readFileToInputStream(
+						"test-journal-article-122-inline-codes.xlf"));
+
+		Collection<InfoFieldValue<Object>> infoFieldValues =
+			infoItemFieldValues.getInfoFieldValues();
+
+		Assert.assertEquals(
+			infoFieldValues.toString(), 2, infoFieldValues.size());
+
+		InfoFieldValue<Object> contentInfoFieldValue =
+			infoItemFieldValues.getInfoFieldValue("content");
+
+		Assert.assertEquals(
+			"<p>Hola <b>mundo</b> &amp; mas</p>",
+			contentInfoFieldValue.getValue(LocaleUtil.SPAIN));
+
+		InfoFieldValue<Object> imageInfoFieldValue =
+			infoItemFieldValues.getInfoFieldValue("image");
+
+		Assert.assertEquals(
+			"<img src=\"/images/logo.png\"/>",
+			imageInfoFieldValue.getValue(LocaleUtil.SPAIN));
 	}
 
 	@Test
