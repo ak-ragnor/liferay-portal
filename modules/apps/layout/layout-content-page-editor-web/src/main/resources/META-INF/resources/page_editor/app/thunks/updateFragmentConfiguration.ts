@@ -17,9 +17,15 @@ import {clearPageContents} from '../utils/usePageContents';
 export default function updateFragmentConfiguration({
 	configurationValues,
 	fragmentEntryLink,
+	itemClassName,
+	itemClassPK,
+	itemExternalReferenceCode,
 }: {
 	configurationValues: Record<string, ConfigurationValue>;
 	fragmentEntryLink: FragmentEntryLink;
+	itemClassName?: string | null;
+	itemClassPK?: string | null;
+	itemExternalReferenceCode?: string | null;
 }) {
 	const {editableValues, fragmentEntryLinkId} = fragmentEntryLink;
 
@@ -43,6 +49,9 @@ export default function updateFragmentConfiguration({
 			editableValues:
 				nextEditableValues as FragmentEntryLink['editableValues'],
 			fragmentEntryLinkId,
+			itemClassName,
+			itemClassPK,
+			itemExternalReferenceCode,
 			languageId,
 			onNetworkStatus: dispatch,
 			segmentsExperienceId,

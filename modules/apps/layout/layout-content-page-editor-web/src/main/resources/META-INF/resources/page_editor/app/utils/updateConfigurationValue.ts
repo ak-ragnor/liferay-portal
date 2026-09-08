@@ -22,6 +22,9 @@ export default function updateConfigurationValue({
 	configuration,
 	dispatch,
 	fragmentEntryLink,
+	itemClassName,
+	itemClassPK,
+	itemExternalReferenceCode,
 	languageId,
 	name,
 	value,
@@ -29,6 +32,9 @@ export default function updateConfigurationValue({
 	configuration?: FragmentConfiguration;
 	dispatch: Dispatch;
 	fragmentEntryLink: FragmentEntryLink;
+	itemClassName?: string | null;
+	itemClassPK?: string | null;
+	itemExternalReferenceCode?: string | null;
 	languageId: Liferay.Language.Locale;
 	name: string;
 	value: ConfigurationValue;
@@ -63,6 +69,9 @@ export default function updateConfigurationValue({
 		updateFragmentConfiguration({
 			configurationValues: nextConfigurationValues,
 			fragmentEntryLink,
+			itemClassName,
+			itemClassPK,
+			itemExternalReferenceCode,
 		})
 	);
 }

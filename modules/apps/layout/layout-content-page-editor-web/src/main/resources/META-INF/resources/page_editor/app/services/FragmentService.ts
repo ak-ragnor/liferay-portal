@@ -392,16 +392,49 @@ export default {
 	updateConfigurationValues({
 		editableValues,
 		fragmentEntryLinkId,
+		itemClassName,
+		itemClassPK,
+		itemExternalReferenceCode,
 		languageId,
 		onNetworkStatus,
 		segmentsExperienceId,
 	}: {
 		editableValues: FragmentEntryLink['editableValues'];
 		fragmentEntryLinkId: string;
+		itemClassName?: string | null;
+		itemClassPK?: string | null;
+		itemExternalReferenceCode?: string | null;
 		languageId: Liferay.Language.Locale;
 		onNetworkStatus: OnNetworkStatus;
 		segmentsExperienceId: string;
 	}) {
+		const body: {
+			editableValues: string;
+			fragmentEntryLinkId: string;
+			itemClassName?: string;
+			itemClassPK?: string;
+			itemExternalReferenceCode?: string;
+			languageId: Liferay.Language.Locale;
+			segmentsExperienceId: string;
+		} = {
+			editableValues: JSON.stringify(editableValues),
+			fragmentEntryLinkId,
+			languageId,
+			segmentsExperienceId,
+		};
+
+		if (itemClassName) {
+			body.itemClassName = itemClassName;
+		}
+
+		if (itemClassPK) {
+			body.itemClassPK = itemClassPK;
+		}
+
+		if (itemExternalReferenceCode) {
+			body.itemExternalReferenceCode = itemExternalReferenceCode;
+		}
+
 		return draftServiceFetch<{
 			fragmentEntryLink: FragmentEntryLink;
 			layoutData: LayoutData;
@@ -409,12 +442,7 @@ export default {
 		}>(
 			config.updateConfigurationValuesURL,
 			{
-				body: {
-					editableValues: JSON.stringify(editableValues),
-					fragmentEntryLinkId,
-					languageId,
-					segmentsExperienceId,
-				},
+				body,
 			},
 			onNetworkStatus
 		);

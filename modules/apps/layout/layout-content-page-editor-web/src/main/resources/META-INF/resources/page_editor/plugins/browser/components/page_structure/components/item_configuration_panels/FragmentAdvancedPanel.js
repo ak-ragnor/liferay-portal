@@ -9,6 +9,7 @@ import React, {useCallback} from 'react';
 import {HideFromSearchField} from '../../../../../../app/components/fragment_configuration_fields/HideFromSearchField';
 import {FRAGMENT_CONFIGURATION_ROLES} from '../../../../../../app/config/constants/fragmentConfigurationRoles';
 import {config} from '../../../../../../app/config/index';
+import {useDisplayPagePreviewItemIdentity} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
 import {
 	useDispatch,
 	useSelector,
@@ -39,18 +40,31 @@ export function FragmentAdvancedPanel({item}) {
 		(state) => state.fragmentEntryLinks
 	);
 
+	const {itemClassName, itemClassPK, itemExternalReferenceCode} =
+		useDisplayPagePreviewItemIdentity();
+
 	const onConfigurationValueSelect = useCallback(
 		(name, value) => {
 			updateConfigurationValue({
 				configuration: fragmentEntryLink.configuration,
 				dispatch,
 				fragmentEntryLink,
+				itemClassName,
+				itemClassPK,
+				itemExternalReferenceCode,
 				languageId,
 				name,
 				value,
 			});
 		},
-		[dispatch, fragmentEntryLink, languageId]
+		[
+			dispatch,
+			fragmentEntryLink,
+			itemClassName,
+			itemClassPK,
+			itemExternalReferenceCode,
+			languageId,
+		]
 	);
 
 	const fieldSets = fragmentEntryLink.configuration?.fieldSets?.filter(

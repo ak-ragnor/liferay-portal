@@ -10,6 +10,7 @@ import React, {useCallback} from 'react';
 import {COMMON_STYLES_ROLES} from '../../../../../../app/config/constants/commonStylesRoles';
 import {FRAGMENT_ENTRY_TYPES} from '../../../../../../app/config/constants/fragmentEntryTypes';
 import {VIEWPORT_SIZES} from '../../../../../../app/config/constants/viewportSizes';
+import {useDisplayPagePreviewItemIdentity} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
 import {
 	useDispatch,
 	useSelector,
@@ -56,18 +57,31 @@ export function FragmentGeneralPanel({item}) {
 
 	const itemConfig = getResponsiveConfig(item.config, selectedViewportSize);
 
+	const {itemClassName, itemClassPK, itemExternalReferenceCode} =
+		useDisplayPagePreviewItemIdentity();
+
 	const onValueSelect = useCallback(
 		(name, value) => {
 			updateConfigurationValue({
 				configuration: fragmentEntryLink.configuration,
 				dispatch,
 				fragmentEntryLink,
+				itemClassName,
+				itemClassPK,
+				itemExternalReferenceCode,
 				languageId,
 				name,
 				value,
 			});
 		},
-		[dispatch, fragmentEntryLink, languageId]
+		[
+			dispatch,
+			fragmentEntryLink,
+			itemClassName,
+			itemClassPK,
+			itemExternalReferenceCode,
+			languageId,
+		]
 	);
 
 	if (restrictedItemIds.has(item.itemId)) {

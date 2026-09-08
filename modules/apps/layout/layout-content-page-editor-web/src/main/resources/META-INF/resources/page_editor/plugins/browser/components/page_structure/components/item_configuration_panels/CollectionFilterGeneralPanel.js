@@ -14,6 +14,7 @@ import {
 	selectConfiguredCollectionDisplays,
 } from '../../../../../../app/components/fragment_configuration_fields/TargetCollectionDisplayField';
 import {COMMON_STYLES_ROLES} from '../../../../../../app/config/constants/commonStylesRoles';
+import {useDisplayPagePreviewItemIdentity} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
 import {
 	useDispatch,
 	useSelector,
@@ -111,17 +112,30 @@ export function CollectionFilterGeneralPanel({item}) {
 		}
 	}, [collectionFilters]);
 
+	const {itemClassName, itemClassPK, itemExternalReferenceCode} =
+		useDisplayPagePreviewItemIdentity();
+
 	const onValueSelect = useCallback(
 		(name, value) => {
 			updateConfigurationValue({
 				dispatch,
 				fragmentEntryLink,
+				itemClassName,
+				itemClassPK,
+				itemExternalReferenceCode,
 				languageId,
 				name,
 				value,
 			});
 		},
-		[dispatch, fragmentEntryLink, languageId]
+		[
+			dispatch,
+			fragmentEntryLink,
+			itemClassName,
+			itemClassPK,
+			itemExternalReferenceCode,
+			languageId,
+		]
 	);
 
 	const onFilterValueSelect = useCallback(
@@ -130,12 +144,23 @@ export function CollectionFilterGeneralPanel({item}) {
 				configuration: selectedFilter?.configuration,
 				dispatch,
 				fragmentEntryLink,
+				itemClassName,
+				itemClassPK,
+				itemExternalReferenceCode,
 				languageId,
 				name,
 				value,
 			});
 		},
-		[dispatch, selectedFilter, fragmentEntryLink, languageId]
+		[
+			dispatch,
+			selectedFilter,
+			fragmentEntryLink,
+			itemClassName,
+			itemClassPK,
+			itemExternalReferenceCode,
+			languageId,
+		]
 	);
 
 	if (loading || filterableCollections === null) {

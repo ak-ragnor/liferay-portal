@@ -9,6 +9,7 @@ import React, {useCallback} from 'react';
 import {FRAGMENT_CONFIGURATION_ROLES} from '../../../../../../app/config/constants/fragmentConfigurationRoles';
 import {VIEWPORT_SIZES} from '../../../../../../app/config/constants/viewportSizes';
 import {config} from '../../../../../../app/config/index';
+import {useDisplayPagePreviewItemIdentity} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
 import {
 	useDispatch,
 	useSelector,
@@ -38,6 +39,9 @@ export function FragmentStylesPanel({item}) {
 
 	const itemConfig = getResponsiveConfig(item.config, selectedViewportSize);
 
+	const {itemClassName, itemClassPK, itemExternalReferenceCode} =
+		useDisplayPagePreviewItemIdentity();
+
 	const hasCustomStyles =
 		fragmentEntryLink.configuration?.fieldSets?.filter(
 			(fieldSet) =>
@@ -51,12 +55,22 @@ export function FragmentStylesPanel({item}) {
 				configuration: fragmentEntryLink.configuration,
 				dispatch,
 				fragmentEntryLink,
+				itemClassName,
+				itemClassPK,
+				itemExternalReferenceCode,
 				languageId,
 				name,
 				value,
 			});
 		},
-		[dispatch, fragmentEntryLink, languageId]
+		[
+			dispatch,
+			fragmentEntryLink,
+			itemClassName,
+			itemClassPK,
+			itemExternalReferenceCode,
+			languageId,
+		]
 	);
 
 	return (
