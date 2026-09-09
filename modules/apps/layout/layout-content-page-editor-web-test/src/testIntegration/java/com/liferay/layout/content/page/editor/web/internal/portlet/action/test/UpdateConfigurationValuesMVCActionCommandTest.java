@@ -16,8 +16,14 @@ import com.liferay.fragment.model.FragmentEntry;
 import com.liferay.fragment.model.FragmentEntryLink;
 import com.liferay.fragment.service.FragmentCollectionLocalService;
 import com.liferay.fragment.service.FragmentEntryLocalService;
+import com.liferay.info.constants.InfoDisplayWebKeys;
 import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
+import com.liferay.object.constants.ObjectEntryFolderConstants;
+import com.liferay.object.model.ObjectDefinition;
+import com.liferay.object.model.ObjectEntry;
+import com.liferay.object.service.ObjectEntryLocalService;
+import com.liferay.object.test.util.ObjectDefinitionTestUtil;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
 import com.liferay.portal.kernel.json.JSONObject;
@@ -52,6 +58,7 @@ import jakarta.portlet.ActionResponse;
 
 import java.io.InputStream;
 
+import java.util.Collections;
 import java.util.Locale;
 import java.util.Set;
 
@@ -159,6 +166,84 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 		Assert.assertEquals(
 			SetUtil.fromArray("link-1", "link-2", "link-3"),
 			_getEditableIds(editableValuesJSONObject));
+	}
+
+	@Test
+	public void testDoTransactionalCommandAppliesPreviewedItemContext()
+		throws Exception {
+
+		Group group = GroupTestUtil.addGroup();
+
+		Layout layout = LayoutTestUtil.addTypeContentLayout(group);
+
+		Layout draftLayout = layout.fetchDraftLayout();
+
+		FragmentEntry fragmentEntry = _addFragmentEntry(group);
+
+		FragmentEntryLink fragmentEntryLink =
+			ContentLayoutTestUtil.addFragmentEntryLinkToLayout(
+				StringPool.BLANK, fragmentEntry.getCss(),
+				fragmentEntry.getConfiguration(),
+				fragmentEntry.getExternalReferenceCode(),
+				ScopeUtil.getItemScopeExternalReferenceCode(
+					fragmentEntry.getGroupId(), draftLayout.getGroupId()),
+				fragmentEntry.getHtml(), fragmentEntry.getJs(), draftLayout,
+				fragmentEntry.getFragmentEntryKey(), fragmentEntry.getType(),
+				null, 0,
+				_segmentsExperienceLocalService.
+					fetchDefaultSegmentsExperienceId(draftLayout.getPlid()));
+
+		ObjectDefinition objectDefinition =
+			ObjectDefinitionTestUtil.publishObjectDefinition();
+
+		ObjectEntry objectEntry = _objectEntryLocalService.addObjectEntry(
+			0, TestPropsValues.getUserId(),
+			objectDefinition.getObjectDefinitionId(),
+			ObjectEntryFolderConstants.PARENT_OBJECT_ENTRY_FOLDER_ID_DEFAULT,
+			null, Collections.emptyMap(), new ServiceContext());
+
+		MockLiferayPortletActionRequest mockLiferayPortletActionRequest =
+			ContentLayoutTestUtil.getMockLiferayPortletActionRequest(
+				_companyLocalService.getCompany(group.getCompanyId()), group,
+				draftLayout);
+
+		mockLiferayPortletActionRequest.setParameter(
+			"editableValues",
+			JSONUtil.put(
+				FragmentEntryProcessorConstants.
+					KEY_FREEMARKER_FRAGMENT_ENTRY_PROCESSOR,
+				JSONFactoryUtil.createJSONObject()
+			).toString());
+		mockLiferayPortletActionRequest.setParameter(
+			"fragmentEntryLinkId",
+			String.valueOf(fragmentEntryLink.getFragmentEntryLinkId()));
+		mockLiferayPortletActionRequest.setParameter(
+			"itemClassName", objectDefinition.getClassName());
+		mockLiferayPortletActionRequest.setParameter(
+			"itemClassPK", String.valueOf(objectEntry.getObjectEntryId()));
+		mockLiferayPortletActionRequest.setParameter(
+			"languageId", LocaleUtil.toLanguageId(LocaleUtil.US));
+
+		MockHttpServletRequest mockHttpServletRequest =
+			(MockHttpServletRequest)
+				mockLiferayPortletActionRequest.getAttribute(
+					PortletServlet.PORTLET_SERVLET_REQUEST);
+
+		mockHttpServletRequest.setParameter(
+			"languageId", LocaleUtil.toLanguageId(LocaleUtil.US));
+
+		ReflectionTestUtil.invoke(
+			_mvcActionCommand, "doTransactionalCommand",
+			new Class<?>[] {ActionRequest.class, ActionResponse.class},
+			mockLiferayPortletActionRequest,
+			new MockLiferayPortletActionResponse());
+
+		ObjectEntry infoItem = (ObjectEntry)mockHttpServletRequest.getAttribute(
+			InfoDisplayWebKeys.INFO_ITEM);
+
+		Assert.assertNotNull(infoItem);
+		Assert.assertEquals(
+			objectEntry.getObjectEntryId(), infoItem.getObjectEntryId());
 	}
 
 	@Test
@@ -330,6 +415,9 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 		filter = "mvc.command.name=/layout_content_page_editor/update_configuration_values"
 	)
 	private MVCActionCommand _mvcActionCommand;
+
+	@Inject
+	private ObjectEntryLocalService _objectEntryLocalService;
 
 	private ObjectMapper _objectMapper;
 
