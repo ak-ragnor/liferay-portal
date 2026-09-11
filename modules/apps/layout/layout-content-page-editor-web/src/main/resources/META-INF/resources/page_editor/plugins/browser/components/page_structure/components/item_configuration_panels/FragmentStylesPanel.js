@@ -9,7 +9,7 @@ import React, {useCallback} from 'react';
 import {FRAGMENT_CONFIGURATION_ROLES} from '../../../../../../app/config/constants/fragmentConfigurationRoles';
 import {VIEWPORT_SIZES} from '../../../../../../app/config/constants/viewportSizes';
 import {config} from '../../../../../../app/config/index';
-import {useDisplayPagePreviewItemIdentity} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
+import {useDisplayPagePreviewItem} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
 import {
 	useDispatch,
 	useSelector,
@@ -26,6 +26,7 @@ import {FieldSet} from './FieldSet';
 
 export function FragmentStylesPanel({item}) {
 	const dispatch = useDispatch();
+	const displayPagePreviewItem = useDisplayPagePreviewItem();
 
 	const fragmentEntryLink = useSelectorCallback(
 		(state) => state.fragmentEntryLinks[item.config.fragmentEntryLinkId],
@@ -39,9 +40,6 @@ export function FragmentStylesPanel({item}) {
 
 	const itemConfig = getResponsiveConfig(item.config, selectedViewportSize);
 
-	const {itemClassName, itemClassPK, itemExternalReferenceCode} =
-		useDisplayPagePreviewItemIdentity();
-
 	const hasCustomStyles =
 		fragmentEntryLink.configuration?.fieldSets?.filter(
 			(fieldSet) =>
@@ -54,23 +52,14 @@ export function FragmentStylesPanel({item}) {
 			updateConfigurationValue({
 				configuration: fragmentEntryLink.configuration,
 				dispatch,
+				displayPagePreviewItem,
 				fragmentEntryLink,
-				itemClassName,
-				itemClassPK,
-				itemExternalReferenceCode,
 				languageId,
 				name,
 				value,
 			});
 		},
-		[
-			dispatch,
-			fragmentEntryLink,
-			itemClassName,
-			itemClassPK,
-			itemExternalReferenceCode,
-			languageId,
-		]
+		[dispatch, displayPagePreviewItem, fragmentEntryLink, languageId]
 	);
 
 	return (

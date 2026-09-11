@@ -14,7 +14,7 @@ import {
 	selectConfiguredCollectionDisplays,
 } from '../../../../../../app/components/fragment_configuration_fields/TargetCollectionDisplayField';
 import {COMMON_STYLES_ROLES} from '../../../../../../app/config/constants/commonStylesRoles';
-import {useDisplayPagePreviewItemIdentity} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
+import {useDisplayPagePreviewItem} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
 import {
 	useDispatch,
 	useSelector,
@@ -34,6 +34,7 @@ import {FieldSet} from './FieldSet';
 
 export function CollectionFilterGeneralPanel({item}) {
 	const dispatch = useDispatch();
+	const displayPagePreviewItem = useDisplayPagePreviewItem();
 
 	const fragmentEntryLink = useSelectorCallback(
 		(state) => state.fragmentEntryLinks[item.config.fragmentEntryLinkId],
@@ -112,30 +113,18 @@ export function CollectionFilterGeneralPanel({item}) {
 		}
 	}, [collectionFilters]);
 
-	const {itemClassName, itemClassPK, itemExternalReferenceCode} =
-		useDisplayPagePreviewItemIdentity();
-
 	const onValueSelect = useCallback(
 		(name, value) => {
 			updateConfigurationValue({
 				dispatch,
+				displayPagePreviewItem,
 				fragmentEntryLink,
-				itemClassName,
-				itemClassPK,
-				itemExternalReferenceCode,
 				languageId,
 				name,
 				value,
 			});
 		},
-		[
-			dispatch,
-			fragmentEntryLink,
-			itemClassName,
-			itemClassPK,
-			itemExternalReferenceCode,
-			languageId,
-		]
+		[dispatch, displayPagePreviewItem, fragmentEntryLink, languageId]
 	);
 
 	const onFilterValueSelect = useCallback(
@@ -143,10 +132,8 @@ export function CollectionFilterGeneralPanel({item}) {
 			updateConfigurationValue({
 				configuration: selectedFilter?.configuration,
 				dispatch,
+				displayPagePreviewItem,
 				fragmentEntryLink,
-				itemClassName,
-				itemClassPK,
-				itemExternalReferenceCode,
 				languageId,
 				name,
 				value,
@@ -154,11 +141,9 @@ export function CollectionFilterGeneralPanel({item}) {
 		},
 		[
 			dispatch,
+			displayPagePreviewItem,
 			selectedFilter,
 			fragmentEntryLink,
-			itemClassName,
-			itemClassPK,
-			itemExternalReferenceCode,
 			languageId,
 		]
 	);

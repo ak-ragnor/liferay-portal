@@ -10,7 +10,7 @@ import React, {useCallback} from 'react';
 import {COMMON_STYLES_ROLES} from '../../../../../../app/config/constants/commonStylesRoles';
 import {FRAGMENT_ENTRY_TYPES} from '../../../../../../app/config/constants/fragmentEntryTypes';
 import {VIEWPORT_SIZES} from '../../../../../../app/config/constants/viewportSizes';
-import {useDisplayPagePreviewItemIdentity} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
+import {useDisplayPagePreviewItem} from '../../../../../../app/contexts/DisplayPagePreviewItemContext';
 import {
 	useDispatch,
 	useSelector,
@@ -27,6 +27,7 @@ import {FieldSet} from './FieldSet';
 
 export function FragmentGeneralPanel({item}) {
 	const dispatch = useDispatch();
+	const displayPagePreviewItem = useDisplayPagePreviewItem();
 
 	const restrictedItemIds = useSelector((state) => state.restrictedItemIds);
 
@@ -57,31 +58,19 @@ export function FragmentGeneralPanel({item}) {
 
 	const itemConfig = getResponsiveConfig(item.config, selectedViewportSize);
 
-	const {itemClassName, itemClassPK, itemExternalReferenceCode} =
-		useDisplayPagePreviewItemIdentity();
-
 	const onValueSelect = useCallback(
 		(name, value) => {
 			updateConfigurationValue({
 				configuration: fragmentEntryLink.configuration,
 				dispatch,
+				displayPagePreviewItem,
 				fragmentEntryLink,
-				itemClassName,
-				itemClassPK,
-				itemExternalReferenceCode,
 				languageId,
 				name,
 				value,
 			});
 		},
-		[
-			dispatch,
-			fragmentEntryLink,
-			itemClassName,
-			itemClassPK,
-			itemExternalReferenceCode,
-			languageId,
-		]
+		[dispatch, displayPagePreviewItem, fragmentEntryLink, languageId]
 	);
 
 	if (restrictedItemIds.has(item.itemId)) {

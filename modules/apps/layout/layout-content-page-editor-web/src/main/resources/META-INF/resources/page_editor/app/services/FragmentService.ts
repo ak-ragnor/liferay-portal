@@ -12,6 +12,7 @@ import {
 } from '../actions/addFragmentEntryLinks';
 import {FragmentEntry} from '../actions/updateFragments';
 import {config} from '../config/index';
+import {PreviewItem} from '../contexts/DisplayPagePreviewItemContext';
 import {PageContent} from '../utils/usePageContents';
 import draftServiceFetch, {OnNetworkStatus} from './draftServiceFetch';
 import serviceFetch from './serviceFetch';
@@ -390,20 +391,16 @@ export default {
 	},
 
 	updateConfigurationValues({
+		displayPagePreviewItem,
 		editableValues,
 		fragmentEntryLinkId,
-		itemClassName,
-		itemClassPK,
-		itemExternalReferenceCode,
 		languageId,
 		onNetworkStatus,
 		segmentsExperienceId,
 	}: {
+		displayPagePreviewItem?: PreviewItem | null;
 		editableValues: FragmentEntryLink['editableValues'];
 		fragmentEntryLinkId: string;
-		itemClassName?: string | null;
-		itemClassPK?: string | null;
-		itemExternalReferenceCode?: string | null;
 		languageId: Liferay.Language.Locale;
 		onNetworkStatus: OnNetworkStatus;
 		segmentsExperienceId: string;
@@ -423,16 +420,17 @@ export default {
 			segmentsExperienceId,
 		};
 
-		if (itemClassName) {
-			body.itemClassName = itemClassName;
-		}
+		if (displayPagePreviewItem?.data.className) {
+			body.itemClassName = displayPagePreviewItem.data.className;
 
-		if (itemClassPK) {
-			body.itemClassPK = itemClassPK;
-		}
+			if (displayPagePreviewItem.data.classPK) {
+				body.itemClassPK = displayPagePreviewItem.data.classPK;
+			}
 
-		if (itemExternalReferenceCode) {
-			body.itemExternalReferenceCode = itemExternalReferenceCode;
+			if (displayPagePreviewItem.data.externalReferenceCode) {
+				body.itemExternalReferenceCode =
+					displayPagePreviewItem.data.externalReferenceCode;
+			}
 		}
 
 		return draftServiceFetch<{
