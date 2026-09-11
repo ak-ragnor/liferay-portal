@@ -16,7 +16,6 @@ import com.liferay.fragment.model.FragmentEntry;
 import com.liferay.fragment.model.FragmentEntryLink;
 import com.liferay.fragment.service.FragmentCollectionLocalService;
 import com.liferay.fragment.service.FragmentEntryLocalService;
-import com.liferay.info.constants.InfoDisplayWebKeys;
 import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
 import com.liferay.object.constants.ObjectEntryFolderConstants;
@@ -106,20 +105,9 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 
 		Layout draftLayout = layout.fetchDraftLayout();
 
-		FragmentEntry fragmentEntry = _addFragmentEntry(group);
-
-		FragmentEntryLink fragmentEntryLink =
-			ContentLayoutTestUtil.addFragmentEntryLinkToLayout(
-				StringPool.BLANK, fragmentEntry.getCss(),
-				fragmentEntry.getConfiguration(),
-				fragmentEntry.getExternalReferenceCode(),
-				ScopeUtil.getItemScopeExternalReferenceCode(
-					fragmentEntry.getGroupId(), draftLayout.getGroupId()),
-				fragmentEntry.getHtml(), fragmentEntry.getJs(), draftLayout,
-				fragmentEntry.getFragmentEntryKey(), fragmentEntry.getType(),
-				null, 0,
-				_segmentsExperienceLocalService.
-					fetchDefaultSegmentsExperienceId(draftLayout.getPlid()));
+		FragmentEntryLink fragmentEntryLink = _addFragmentEntryLink(
+			draftLayout, group, "localizable_fragment.html",
+			"localizable_fragment_configuration.json");
 
 		JSONObject configurationValuesJSONObject = JSONUtil.put(
 			"numberOfLinks",
@@ -169,7 +157,7 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 	}
 
 	@Test
-	public void testDoTransactionalCommandAppliesPreviewedItemContext()
+	public void testDoTransactionalCommandWithInfoItemReference()
 		throws Exception {
 
 		Group group = GroupTestUtil.addGroup();
@@ -178,20 +166,9 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 
 		Layout draftLayout = layout.fetchDraftLayout();
 
-		FragmentEntry fragmentEntry = _addFragmentEntry(group);
-
-		FragmentEntryLink fragmentEntryLink =
-			ContentLayoutTestUtil.addFragmentEntryLinkToLayout(
-				StringPool.BLANK, fragmentEntry.getCss(),
-				fragmentEntry.getConfiguration(),
-				fragmentEntry.getExternalReferenceCode(),
-				ScopeUtil.getItemScopeExternalReferenceCode(
-					fragmentEntry.getGroupId(), draftLayout.getGroupId()),
-				fragmentEntry.getHtml(), fragmentEntry.getJs(), draftLayout,
-				fragmentEntry.getFragmentEntryKey(), fragmentEntry.getType(),
-				null, 0,
-				_segmentsExperienceLocalService.
-					fetchDefaultSegmentsExperienceId(draftLayout.getPlid()));
+		FragmentEntryLink fragmentEntryLink = _addFragmentEntryLink(
+			draftLayout, group, "info_item_fragment.html",
+			"info_item_fragment_configuration.json");
 
 		ObjectDefinition objectDefinition =
 			ObjectDefinitionTestUtil.publishObjectDefinition();
@@ -203,47 +180,24 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 			null, Collections.emptyMap(), new ServiceContext());
 
 		MockLiferayPortletActionRequest mockLiferayPortletActionRequest =
-			ContentLayoutTestUtil.getMockLiferayPortletActionRequest(
-				_companyLocalService.getCompany(group.getCompanyId()), group,
-				draftLayout);
+			_getMockLiferayPortletActionRequest(
+				JSONUtil.put("item", StringPool.BLANK), draftLayout,
+				fragmentEntryLink, group, LocaleUtil.US);
 
-		mockLiferayPortletActionRequest.setParameter(
-			"editableValues",
-			JSONUtil.put(
-				FragmentEntryProcessorConstants.
-					KEY_FREEMARKER_FRAGMENT_ENTRY_PROCESSOR,
-				JSONFactoryUtil.createJSONObject()
-			).toString());
-		mockLiferayPortletActionRequest.setParameter(
-			"fragmentEntryLinkId",
-			String.valueOf(fragmentEntryLink.getFragmentEntryLinkId()));
+		String content = _getContent(mockLiferayPortletActionRequest);
+
+		Assert.assertFalse(
+			content.contains(objectEntry.getExternalReferenceCode()));
+
 		mockLiferayPortletActionRequest.setParameter(
 			"itemClassName", objectDefinition.getClassName());
 		mockLiferayPortletActionRequest.setParameter(
 			"itemClassPK", String.valueOf(objectEntry.getObjectEntryId()));
-		mockLiferayPortletActionRequest.setParameter(
-			"languageId", LocaleUtil.toLanguageId(LocaleUtil.US));
 
-		MockHttpServletRequest mockHttpServletRequest =
-			(MockHttpServletRequest)
-				mockLiferayPortletActionRequest.getAttribute(
-					PortletServlet.PORTLET_SERVLET_REQUEST);
+		content = _getContent(mockLiferayPortletActionRequest);
 
-		mockHttpServletRequest.setParameter(
-			"languageId", LocaleUtil.toLanguageId(LocaleUtil.US));
-
-		ReflectionTestUtil.invoke(
-			_mvcActionCommand, "doTransactionalCommand",
-			new Class<?>[] {ActionRequest.class, ActionResponse.class},
-			mockLiferayPortletActionRequest,
-			new MockLiferayPortletActionResponse());
-
-		ObjectEntry infoItem = (ObjectEntry)mockHttpServletRequest.getAttribute(
-			InfoDisplayWebKeys.INFO_ITEM);
-
-		Assert.assertNotNull(infoItem);
-		Assert.assertEquals(
-			objectEntry.getObjectEntryId(), infoItem.getObjectEntryId());
+		Assert.assertTrue(
+			content.contains(objectEntry.getExternalReferenceCode()));
 	}
 
 	@Test
@@ -306,7 +260,11 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 			_objectMapper.readTree(mergeEditableValuesJSONObject.toString()));
 	}
 
-	private FragmentEntry _addFragmentEntry(Group group) throws Exception {
+	private FragmentEntryLink _addFragmentEntryLink(
+			Layout draftLayout, Group group, String htmlFileName,
+			String configurationFileName)
+		throws Exception {
+
 		ServiceContext serviceContext =
 			ServiceContextTestUtil.getServiceContext(
 				group.getGroupId(), TestPropsValues.getUserId());
@@ -316,15 +274,37 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 				null, TestPropsValues.getUserId(), group.getGroupId(),
 				StringUtil.randomString(), StringPool.BLANK, serviceContext);
 
-		return _fragmentEntryLocalService.addFragmentEntry(
-			null, TestPropsValues.getUserId(), group.getGroupId(),
-			fragmentCollection.getFragmentCollectionId(),
-			StringUtil.randomString(), StringUtil.randomString(),
-			StringPool.BLANK, _read("localizable_fragment.html"),
-			StringPool.BLANK, false,
-			_read("localizable_fragment_configuration.json"), null, 0, false,
-			false, FragmentConstants.TYPE_COMPONENT, null,
-			WorkflowConstants.STATUS_APPROVED, serviceContext);
+		FragmentEntry fragmentEntry =
+			_fragmentEntryLocalService.addFragmentEntry(
+				null, TestPropsValues.getUserId(), group.getGroupId(),
+				fragmentCollection.getFragmentCollectionId(),
+				StringUtil.randomString(), StringUtil.randomString(),
+				StringPool.BLANK, _read(htmlFileName), StringPool.BLANK, false,
+				_read(configurationFileName), null, 0, false, false,
+				FragmentConstants.TYPE_COMPONENT, null,
+				WorkflowConstants.STATUS_APPROVED, serviceContext);
+
+		return ContentLayoutTestUtil.addFragmentEntryLinkToLayout(
+			StringPool.BLANK, fragmentEntry.getCss(),
+			fragmentEntry.getConfiguration(),
+			fragmentEntry.getExternalReferenceCode(),
+			ScopeUtil.getItemScopeExternalReferenceCode(
+				fragmentEntry.getGroupId(), draftLayout.getGroupId()),
+			fragmentEntry.getHtml(), fragmentEntry.getJs(), draftLayout,
+			fragmentEntry.getFragmentEntryKey(), fragmentEntry.getType(), null,
+			0,
+			_segmentsExperienceLocalService.fetchDefaultSegmentsExperienceId(
+				draftLayout.getPlid()));
+	}
+
+	private String _getContent(
+			MockLiferayPortletActionRequest mockLiferayPortletActionRequest)
+		throws Exception {
+
+		JSONObject fragmentEntryLinkJSONObject =
+			_getFragmentEntryLinkJSONObject(mockLiferayPortletActionRequest);
+
+		return fragmentEntryLinkJSONObject.getString("content");
 	}
 
 	private String _getEditableDefaultValue(
@@ -350,16 +330,20 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 		return editableFragmentEntryProcessorJSONObject.keySet();
 	}
 
-	private String _read(String fileName) throws Exception {
-		Class<?> clazz = getClass();
+	private JSONObject _getFragmentEntryLinkJSONObject(
+			MockLiferayPortletActionRequest mockLiferayPortletActionRequest)
+		throws Exception {
 
-		InputStream inputStream = clazz.getResourceAsStream(
-			"dependencies/" + fileName);
+		JSONObject jsonObject = ReflectionTestUtil.invoke(
+			_mvcActionCommand, "doTransactionalCommand",
+			new Class<?>[] {ActionRequest.class, ActionResponse.class},
+			mockLiferayPortletActionRequest,
+			new MockLiferayPortletActionResponse());
 
-		return StringUtil.read(inputStream);
+		return jsonObject.getJSONObject("fragmentEntryLink");
 	}
 
-	private JSONObject _transactionalCommand(
+	private MockLiferayPortletActionRequest _getMockLiferayPortletActionRequest(
 			JSONObject configurationValuesJSONObject, Layout draftLayout,
 			FragmentEntryLink fragmentEntryLink, Group group, Locale locale)
 		throws Exception {
@@ -390,14 +374,28 @@ public class UpdateConfigurationValuesMVCActionCommandTest {
 		mockHttpServletRequest.setParameter(
 			"languageId", LocaleUtil.toLanguageId(locale));
 
-		JSONObject jsonObject = ReflectionTestUtil.invoke(
-			_mvcActionCommand, "doTransactionalCommand",
-			new Class<?>[] {ActionRequest.class, ActionResponse.class},
-			mockLiferayPortletActionRequest,
-			new MockLiferayPortletActionResponse());
+		return mockLiferayPortletActionRequest;
+	}
 
-		JSONObject fragmentEntryLinkJSONObject = jsonObject.getJSONObject(
-			"fragmentEntryLink");
+	private String _read(String fileName) throws Exception {
+		Class<?> clazz = getClass();
+
+		InputStream inputStream = clazz.getResourceAsStream(
+			"dependencies/" + fileName);
+
+		return StringUtil.read(inputStream);
+	}
+
+	private JSONObject _transactionalCommand(
+			JSONObject configurationValuesJSONObject, Layout draftLayout,
+			FragmentEntryLink fragmentEntryLink, Group group, Locale locale)
+		throws Exception {
+
+		JSONObject fragmentEntryLinkJSONObject =
+			_getFragmentEntryLinkJSONObject(
+				_getMockLiferayPortletActionRequest(
+					configurationValuesJSONObject, draftLayout,
+					fragmentEntryLink, group, locale));
 
 		return fragmentEntryLinkJSONObject.getJSONObject("editableValues");
 	}
