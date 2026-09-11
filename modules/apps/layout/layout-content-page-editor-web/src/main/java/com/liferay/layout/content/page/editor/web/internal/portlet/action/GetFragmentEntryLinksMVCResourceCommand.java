@@ -6,12 +6,11 @@
 package com.liferay.layout.content.page.editor.web.internal.portlet.action;
 
 import com.liferay.fragment.model.FragmentEntryLink;
-import com.liferay.fragment.renderer.DefaultFragmentRendererContext;
 import com.liferay.fragment.service.FragmentEntryLinkLocalService;
 import com.liferay.layout.content.page.editor.constants.ContentPageEditorPortletKeys;
-import com.liferay.layout.content.page.editor.web.internal.manager.FragmentEntryLinkManager;
+import com.liferay.layout.content.page.editor.web.internal.helper.FragmentEntryLinkInfoItemRenderHelper;
+import com.liferay.layout.content.page.editor.web.internal.util.InfoItemReferenceUtil;
 import com.liferay.layout.content.page.editor.web.internal.util.layout.structure.LayoutStructureUtil;
-import com.liferay.layout.display.page.LayoutDisplayPageProvider;
 import com.liferay.layout.util.structure.LayoutStructure;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactory;
@@ -89,39 +88,25 @@ public class GetFragmentEntryLinksMVCResourceCommand
 			ResourceRequest resourceRequest, ResourceResponse resourceResponse)
 		throws Exception {
 
-		JSONObject jsonObject = _jsonFactory.createJSONObject();
-
 		FragmentEntryLink fragmentEntryLink =
 			_fragmentEntryLinkLocalService.fetchFragmentEntryLink(
 				fragmentEntryLinkId);
 
 		if (fragmentEntryLink == null) {
-			return jsonObject;
+			return _jsonFactory.createJSONObject();
 		}
-
-		DefaultFragmentRendererContext defaultFragmentRendererContext =
-			new DefaultFragmentRendererContext(fragmentEntryLink);
 
 		HttpServletRequest httpServletRequest = _portal.getHttpServletRequest(
 			resourceRequest);
 
-		LayoutDisplayPageProvider<?> currentLayoutDisplayPageProvider =
-			_fragmentEntryLinkManager.applyItemContext(
-				defaultFragmentRendererContext, itemClassName, itemClassPK,
-				itemExternalReferenceCode, httpServletRequest);
-
-		try {
-			jsonObject =
-				_fragmentEntryLinkManager.getFragmentEntryLinkJSONObject(
-					defaultFragmentRendererContext, fragmentEntryLink,
-					_portal.getHttpServletRequest(resourceRequest),
+		JSONObject jsonObject =
+			_fragmentEntryLinkInfoItemRenderHelper.
+				getFragmentEntryLinkJSONObject(
+					fragmentEntryLink, httpServletRequest,
 					_portal.getHttpServletResponse(resourceResponse),
+					InfoItemReferenceUtil.getInfoItemReference(
+						itemClassName, itemClassPK, itemExternalReferenceCode),
 					layoutStructure);
-		}
-		finally {
-			_fragmentEntryLinkManager.resetItemContext(
-				httpServletRequest, currentLayoutDisplayPageProvider);
-		}
 
 		if (SessionErrors.contains(
 				httpServletRequest, "fragmentEntryContentInvalid")) {
@@ -135,10 +120,11 @@ public class GetFragmentEntryLinksMVCResourceCommand
 	}
 
 	@Reference
-	private FragmentEntryLinkLocalService _fragmentEntryLinkLocalService;
+	private FragmentEntryLinkInfoItemRenderHelper
+		_fragmentEntryLinkInfoItemRenderHelper;
 
 	@Reference
-	private FragmentEntryLinkManager _fragmentEntryLinkManager;
+	private FragmentEntryLinkLocalService _fragmentEntryLinkLocalService;
 
 	@Reference
 	private JSONFactory _jsonFactory;
