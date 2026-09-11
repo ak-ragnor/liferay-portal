@@ -60,21 +60,6 @@ export function useDisplayPagePreviewItem() {
 	return useContext(SelectedItemStateContext).selectedItem;
 }
 
-/**
- * Convenience wrapper around `useDisplayPagePreviewItem` for the common case
- * of forwarding the previewed item's identity (for example, to a fragment
- * configuration update) without caring about its `title` or `label`.
- */
-export function useDisplayPagePreviewItemIdentity() {
-	const {
-		className: itemClassName,
-		classPK: itemClassPK,
-		externalReferenceCode: itemExternalReferenceCode,
-	} = useDisplayPagePreviewItem()?.data || {};
-
-	return {itemClassName, itemClassPK, itemExternalReferenceCode};
-}
-
 export function useDisplayPageRecentPreviewItemList() {
 	return useContext(SelectedItemStateContext).recentItemList;
 }
