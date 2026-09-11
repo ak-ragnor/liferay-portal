@@ -116,9 +116,7 @@ public class FragmentEntryLinkInfoItemRenderHelper {
 		}
 	}
 
-	private Object _getInfoItemObject(InfoItemReference infoItemReference)
-		throws NoSuchInfoItemException {
-
+	private Object _getInfoItemObject(InfoItemReference infoItemReference) {
 		InfoItemIdentifier infoItemIdentifier =
 			infoItemReference.getInfoItemIdentifier();
 
@@ -131,15 +129,23 @@ public class FragmentEntryLinkInfoItemRenderHelper {
 			return null;
 		}
 
-		return infoItemObjectProvider.getInfoItem(infoItemIdentifier);
+		try {
+			return infoItemObjectProvider.getInfoItem(infoItemIdentifier);
+		}
+		catch (NoSuchInfoItemException noSuchInfoItemException) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(noSuchInfoItemException);
+			}
+
+			return null;
+		}
 	}
 
 	private void _setInfoItemContext(
-			DefaultFragmentRendererContext defaultFragmentRendererContext,
-			FragmentEntryLink fragmentEntryLink,
-			HttpServletRequest httpServletRequest,
-			InfoItemReference infoItemReference)
-		throws NoSuchInfoItemException {
+		DefaultFragmentRendererContext defaultFragmentRendererContext,
+		FragmentEntryLink fragmentEntryLink,
+		HttpServletRequest httpServletRequest,
+		InfoItemReference infoItemReference) {
 
 		String className = infoItemReference.getClassName();
 
