@@ -21,7 +21,6 @@ import com.liferay.portal.kernel.portlet.bridges.mvc.BaseMVCResourceCommand;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCResourceCommand;
 import com.liferay.portal.kernel.servlet.SessionErrors;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
-import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.ParamUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.WebKeys;
@@ -77,9 +76,6 @@ public class GetFragmentEntryLinksMVCResourceCommand
 					jsonObject.getString("itemClassName"),
 					jsonObject.getLong("itemClassPK"),
 					jsonObject.getString("itemExternalReferenceCode"),
-					ParamUtil.getString(
-						resourceRequest, "languageId",
-						themeDisplay.getLanguageId()),
 					layoutStructure, resourceRequest, resourceResponse));
 		}
 
@@ -89,9 +85,8 @@ public class GetFragmentEntryLinksMVCResourceCommand
 
 	private JSONObject _getFragmentEntryLinkJSONObject(
 			long fragmentEntryLinkId, String itemClassName, long itemClassPK,
-			String itemExternalReferenceCode, String languageId,
-			LayoutStructure layoutStructure, ResourceRequest resourceRequest,
-			ResourceResponse resourceResponse)
+			String itemExternalReferenceCode, LayoutStructure layoutStructure,
+			ResourceRequest resourceRequest, ResourceResponse resourceResponse)
 		throws Exception {
 
 		JSONObject jsonObject = _jsonFactory.createJSONObject();
@@ -106,9 +101,6 @@ public class GetFragmentEntryLinksMVCResourceCommand
 
 		DefaultFragmentRendererContext defaultFragmentRendererContext =
 			new DefaultFragmentRendererContext(fragmentEntryLink);
-
-		defaultFragmentRendererContext.setLocale(
-			LocaleUtil.fromLanguageId(languageId));
 
 		HttpServletRequest httpServletRequest = _portal.getHttpServletRequest(
 			resourceRequest);
