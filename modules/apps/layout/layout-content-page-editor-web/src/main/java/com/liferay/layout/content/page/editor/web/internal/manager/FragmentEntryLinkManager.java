@@ -5,10 +5,6 @@
 
 package com.liferay.layout.content.page.editor.web.internal.manager;
 
-import com.liferay.asset.kernel.AssetRendererFactoryRegistryUtil;
-import com.liferay.asset.kernel.model.AssetEntry;
-import com.liferay.asset.kernel.model.AssetRendererFactory;
-import com.liferay.asset.util.LinkedAssetEntryIdsUtil;
 import com.liferay.fragment.constants.FragmentConstants;
 import com.liferay.fragment.constants.FragmentEntryLinkConstants;
 import com.liferay.fragment.contributor.FragmentCollectionContributorRegistry;
@@ -25,24 +21,13 @@ import com.liferay.fragment.renderer.constants.FragmentRendererConstants;
 import com.liferay.fragment.service.FragmentEntryLinkLocalService;
 import com.liferay.fragment.service.FragmentEntryLocalService;
 import com.liferay.fragment.util.configuration.FragmentEntryConfigurationParser;
-import com.liferay.info.constants.InfoDisplayWebKeys;
 import com.liferay.info.exception.NoSuchFormVariationException;
-import com.liferay.info.exception.NoSuchInfoItemException;
 import com.liferay.info.form.InfoForm;
-import com.liferay.info.item.ClassPKInfoItemIdentifier;
-import com.liferay.info.item.ERCInfoItemIdentifier;
-import com.liferay.info.item.InfoItemIdentifier;
-import com.liferay.info.item.InfoItemReference;
 import com.liferay.info.item.InfoItemServiceRegistry;
-import com.liferay.info.item.provider.InfoItemDetailsProvider;
 import com.liferay.info.item.provider.InfoItemFormProvider;
-import com.liferay.info.item.provider.InfoItemObjectProvider;
 import com.liferay.item.selector.ItemSelector;
 import com.liferay.layout.content.page.editor.web.internal.comment.CommentUtil;
 import com.liferay.layout.content.page.editor.web.internal.util.FragmentEntryLinkItemSelectorUtil;
-import com.liferay.layout.display.page.LayoutDisplayPageProvider;
-import com.liferay.layout.display.page.LayoutDisplayPageProviderRegistry;
-import com.liferay.layout.display.page.constants.LayoutDisplayPageWebKeys;
 import com.liferay.layout.util.constants.LayoutDataItemTypeConstants;
 import com.liferay.layout.util.structure.FormStyledLayoutStructureItem;
 import com.liferay.layout.util.structure.FragmentStyledLayoutStructureItem;
@@ -98,91 +83,6 @@ import org.osgi.service.component.annotations.Reference;
  */
 @Component(service = FragmentEntryLinkManager.class)
 public class FragmentEntryLinkManager {
-
-	/**
-	 * Resolves the previewed/mapped item (for example, the object entry
-	 * selected via "Preview With") into
-	 * <code>defaultFragmentRendererContext</code> and into request
-	 * attributes, so a fragment render can make that item available to its
-	 * FreeMarker template (as the info item, and to the display page
-	 * provider). Returns the previously set {@link LayoutDisplayPageProvider}
-	 * request attribute so it can be restored afterwards with {@link
-	 * #resetItemContext(HttpServletRequest, LayoutDisplayPageProvider)}.
-	 */
-	public LayoutDisplayPageProvider<?> applyItemContext(
-			DefaultFragmentRendererContext defaultFragmentRendererContext,
-			String itemClassName, long itemClassPK,
-			String itemExternalReferenceCode,
-			HttpServletRequest httpServletRequest)
-		throws NoSuchInfoItemException {
-
-		LayoutDisplayPageProvider<?> currentLayoutDisplayPageProvider =
-			(LayoutDisplayPageProvider<?>)httpServletRequest.getAttribute(
-				LayoutDisplayPageWebKeys.LAYOUT_DISPLAY_PAGE_PROVIDER);
-
-		if (Validator.isNull(itemClassName) ||
-			((itemClassPK <= 0) &&
-			 Validator.isNull(itemExternalReferenceCode))) {
-
-			return currentLayoutDisplayPageProvider;
-		}
-
-		InfoItemIdentifier infoItemIdentifier = null;
-
-		if (itemClassPK > 0) {
-			infoItemIdentifier = new ClassPKInfoItemIdentifier(itemClassPK);
-		}
-		else {
-			infoItemIdentifier = new ERCInfoItemIdentifier(
-				itemExternalReferenceCode);
-		}
-
-		InfoItemObjectProvider<Object> infoItemObjectProvider =
-			_infoItemServiceRegistry.getFirstInfoItemService(
-				InfoItemObjectProvider.class, itemClassName,
-				infoItemIdentifier.getInfoItemServiceFilter());
-
-		if (infoItemObjectProvider != null) {
-			Object infoItemObject = infoItemObjectProvider.getInfoItem(
-				infoItemIdentifier);
-
-			defaultFragmentRendererContext.setContextInfoItemReference(
-				new InfoItemReference(itemClassName, infoItemIdentifier));
-
-			httpServletRequest.setAttribute(
-				InfoDisplayWebKeys.INFO_ITEM, infoItemObject);
-
-			InfoItemDetailsProvider infoItemDetailsProvider =
-				_infoItemServiceRegistry.getFirstInfoItemService(
-					InfoItemDetailsProvider.class, itemClassName);
-
-			if (infoItemDetailsProvider != null) {
-				httpServletRequest.setAttribute(
-					InfoDisplayWebKeys.INFO_ITEM_DETAILS,
-					infoItemDetailsProvider.getInfoItemDetails(infoItemObject));
-			}
-
-			httpServletRequest.setAttribute(
-				InfoDisplayWebKeys.INFO_ITEM_REFERENCE,
-				new InfoItemReference(itemClassName, infoItemIdentifier));
-
-			_addLinkedAssetEntryId(
-				itemClassName, itemClassPK, httpServletRequest);
-		}
-
-		LayoutDisplayPageProvider<?> layoutDisplayPageProvider =
-			_layoutDisplayPageProviderRegistry.
-				getLayoutDisplayPageProviderByClassName(
-					_portal.getCompanyId(httpServletRequest), itemClassName);
-
-		if (layoutDisplayPageProvider != null) {
-			httpServletRequest.setAttribute(
-				LayoutDisplayPageWebKeys.LAYOUT_DISPLAY_PAGE_PROVIDER,
-				layoutDisplayPageProvider);
-		}
-
-		return currentLayoutDisplayPageProvider;
-	}
 
 	public List<FragmentEntryLink> getChildrenFragmentEntryLinks(
 			List<String> itemIds, LayoutStructure layoutStructure)
@@ -575,23 +475,6 @@ public class FragmentEntryLinkManager {
 		return editableValuesJSONObject;
 	}
 
-	/**
-	 * Undoes {@link #applyItemContext(DefaultFragmentRendererContext, String,
-	 * long, String, HttpServletRequest)}, restoring the request to the state
-	 * it was in beforehand.
-	 */
-	public void resetItemContext(
-		HttpServletRequest httpServletRequest,
-		LayoutDisplayPageProvider<?> previousLayoutDisplayPageProvider) {
-
-		httpServletRequest.removeAttribute(
-			InfoDisplayWebKeys.INFO_ITEM_REFERENCE);
-
-		httpServletRequest.setAttribute(
-			LayoutDisplayPageWebKeys.LAYOUT_DISPLAY_PAGE_PROVIDER,
-			previousLayoutDisplayPageProvider);
-	}
-
 	@Activate
 	protected void activate(BundleContext bundleContext) {
 		_serviceTrackerList = ServiceTrackerListFactory.open(
@@ -601,33 +484,6 @@ public class FragmentEntryLinkManager {
 	@Deactivate
 	protected void deactivate() {
 		_serviceTrackerList.close();
-	}
-
-	private void _addLinkedAssetEntryId(
-		String className, long classPK, HttpServletRequest httpServletRequest) {
-
-		AssetRendererFactory<?> assetRendererFactory =
-			AssetRendererFactoryRegistryUtil.getAssetRendererFactoryByClassName(
-				className);
-
-		if (assetRendererFactory == null) {
-			return;
-		}
-
-		try {
-			AssetEntry assetEntry = assetRendererFactory.getAssetEntry(
-				className, classPK);
-
-			if (assetEntry != null) {
-				LinkedAssetEntryIdsUtil.addLinkedAssetEntryId(
-					httpServletRequest, assetEntry.getEntryId());
-			}
-		}
-		catch (PortalException portalException) {
-			if (_log.isDebugEnabled()) {
-				_log.debug(portalException);
-			}
-		}
 	}
 
 	private JSONObject _getActionsJSONObject(
@@ -901,10 +757,6 @@ public class FragmentEntryLinkManager {
 
 	@Reference
 	private Language _language;
-
-	@Reference
-	private LayoutDisplayPageProviderRegistry
-		_layoutDisplayPageProviderRegistry;
 
 	@Reference
 	private Portal _portal;
