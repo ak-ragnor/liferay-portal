@@ -12,14 +12,14 @@ import com.liferay.fragment.model.FragmentEntryLink;
 import com.liferay.fragment.processor.DefaultFragmentEntryProcessorContext;
 import com.liferay.fragment.processor.FragmentEntryProcessorContext;
 import com.liferay.fragment.processor.FragmentEntryProcessorRegistry;
-import com.liferay.fragment.renderer.DefaultFragmentRendererContext;
 import com.liferay.fragment.service.FragmentEntryLinkService;
 import com.liferay.fragment.util.configuration.FragmentConfigurationField;
 import com.liferay.fragment.util.configuration.FragmentEntryConfigurationParser;
 import com.liferay.layout.content.page.editor.constants.ContentPageEditorPortletKeys;
+import com.liferay.layout.content.page.editor.web.internal.helper.FragmentEntryLinkInfoItemRenderHelper;
 import com.liferay.layout.content.page.editor.web.internal.manager.FragmentEntryLinkManager;
+import com.liferay.layout.content.page.editor.web.internal.util.InfoItemReferenceUtil;
 import com.liferay.layout.content.page.editor.web.internal.util.layout.structure.LayoutStructureUtil;
-import com.liferay.layout.display.page.LayoutDisplayPageProvider;
 import com.liferay.layout.util.structure.LayoutStructure;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
@@ -34,8 +34,6 @@ import com.liferay.portal.kernel.util.WebKeys;
 
 import jakarta.portlet.ActionRequest;
 import jakarta.portlet.ActionResponse;
-
-import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -190,12 +188,6 @@ public class UpdateConfigurationValuesMVCActionCommand
 		String editableValues = ParamUtil.getString(
 			actionRequest, "editableValues");
 
-		String itemClassName = ParamUtil.getString(
-			actionRequest, "itemClassName");
-		long itemClassPK = ParamUtil.getLong(actionRequest, "itemClassPK");
-		String itemExternalReferenceCode = ParamUtil.getString(
-			actionRequest, "itemExternalReferenceCode");
-
 		FragmentEntryLink fragmentEntryLink =
 			_fragmentEntryLinkService.updateFragmentEntryLink(
 				fragmentEntryLinkId, editableValues);
@@ -221,34 +213,19 @@ public class UpdateConfigurationValuesMVCActionCommand
 				themeDisplay.getScopeGroupId(), themeDisplay.getPlid(),
 				fragmentEntryLink.getSegmentsExperienceId());
 
-		DefaultFragmentRendererContext defaultFragmentRendererContext =
-			new DefaultFragmentRendererContext(fragmentEntryLink);
-
-		HttpServletRequest httpServletRequest = _portal.getHttpServletRequest(
-			actionRequest);
-
-		LayoutDisplayPageProvider<?> currentLayoutDisplayPageProvider =
-			_fragmentEntryLinkManager.applyItemContext(
-				defaultFragmentRendererContext, itemClassName, itemClassPK,
-				itemExternalReferenceCode, httpServletRequest);
-
-		JSONObject fragmentEntryLinkJSONObject;
-
-		try {
-			fragmentEntryLinkJSONObject =
-				_fragmentEntryLinkManager.getFragmentEntryLinkJSONObject(
-					defaultFragmentRendererContext, fragmentEntryLink,
-					httpServletRequest,
-					_portal.getHttpServletResponse(actionResponse),
-					layoutStructure);
-		}
-		finally {
-			_fragmentEntryLinkManager.resetItemContext(
-				httpServletRequest, currentLayoutDisplayPageProvider);
-		}
-
 		return JSONUtil.put(
-			"fragmentEntryLink", fragmentEntryLinkJSONObject
+			"fragmentEntryLink",
+			_fragmentEntryLinkInfoItemRenderHelper.
+				getFragmentEntryLinkJSONObject(
+					fragmentEntryLink,
+					_portal.getHttpServletRequest(actionRequest),
+					_portal.getHttpServletResponse(actionResponse),
+					InfoItemReferenceUtil.getInfoItemReference(
+						ParamUtil.getString(actionRequest, "itemClassName"),
+						ParamUtil.getLong(actionRequest, "itemClassPK"),
+						ParamUtil.getString(
+							actionRequest, "itemExternalReferenceCode")),
+					layoutStructure)
 		).put(
 			"layoutData", layoutStructure.toJSONObject()
 		);
@@ -256,6 +233,10 @@ public class UpdateConfigurationValuesMVCActionCommand
 
 	@Reference
 	private FragmentEntryConfigurationParser _fragmentEntryConfigurationParser;
+
+	@Reference
+	private FragmentEntryLinkInfoItemRenderHelper
+		_fragmentEntryLinkInfoItemRenderHelper;
 
 	@Reference
 	private FragmentEntryLinkListenerRegistry
