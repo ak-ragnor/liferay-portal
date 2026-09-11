@@ -53,6 +53,7 @@ export default function updateFragmentConfiguration({
 		}).then(({fragmentEntryLink, layoutData}) => {
 			dispatch(
 				updateFragmentEntryLinkConfiguration({
+					displayPagePreviewItem,
 					fragmentEntryLink,
 					fragmentEntryLinkId,
 					layoutData,
