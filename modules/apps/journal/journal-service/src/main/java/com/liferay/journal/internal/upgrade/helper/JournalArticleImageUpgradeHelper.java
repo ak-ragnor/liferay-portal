@@ -13,6 +13,7 @@ import com.liferay.petra.string.CharPool;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
@@ -38,12 +39,12 @@ import org.osgi.service.component.annotations.Reference;
 @Component(service = JournalArticleImageUpgradeHelper.class)
 public class JournalArticleImageUpgradeHelper {
 
-	public String getDocumentLibraryValue(String url) {
+	public JSONObject getDocumentLibraryJSONObject(String url) {
 		try {
 			FileEntry fileEntry = getFileEntryFromURL(url);
 
 			if (fileEntry == null) {
-				return StringPool.BLANK;
+				return null;
 			}
 
 			return JSONUtil.put(
@@ -54,7 +55,7 @@ public class JournalArticleImageUpgradeHelper {
 				"type", "document"
 			).put(
 				"uuid", fileEntry.getUuid()
-			).toString();
+			);
 		}
 		catch (Exception exception) {
 			if (_log.isDebugEnabled()) {
@@ -62,19 +63,33 @@ public class JournalArticleImageUpgradeHelper {
 			}
 		}
 
-		return StringPool.BLANK;
+		return null;
+	}
+
+	public String getDocumentLibraryValue(String url) {
+		JSONObject jsonObject = getDocumentLibraryJSONObject(url);
+
+		if (jsonObject == null) {
+			return StringPool.BLANK;
+		}
+
+		return jsonObject.toString();
 	}
 
 	public FileEntry getFileEntryFromURL(String url) {
+		if (!isDocumentLibraryURL(url)) {
+			return null;
+		}
+
 		FileEntry fileEntry = null;
 
 		try {
-			if (url.contains("/c/document_library/get_file?") ||
-				url.contains("/image/image_gallery?")) {
+			if (url.contains(_DOCUMENT_LIBRARY_GET_FILE_URL_PATH) ||
+				url.contains(_IMAGE_GALLERY_URL_PATH)) {
 
 				fileEntry = _getFileEntryByOldDocumentLibraryURL(url);
 			}
-			else if (url.contains("/documents/")) {
+			else {
 				fileEntry = _getFileEntryByDocumentLibraryURL(url);
 			}
 		}
@@ -125,10 +140,21 @@ public class JournalArticleImageUpgradeHelper {
 		return folder.getFolderId();
 	}
 
+	public boolean isDocumentLibraryURL(String url) {
+		if (url.contains(_DOCUMENT_LIBRARY_GET_FILE_URL_PATH) ||
+			url.contains(_DOCUMENTS_URL_PATH) ||
+			url.contains(_IMAGE_GALLERY_URL_PATH)) {
+
+			return true;
+		}
+
+		return false;
+	}
+
 	private FileEntry _getFileEntryByDocumentLibraryURL(String url)
 		throws PortalException {
 
-		int x = url.indexOf("/documents/");
+		int x = url.indexOf(_DOCUMENTS_URL_PATH);
 
 		int y = url.indexOf(StringPool.QUESTION);
 
@@ -217,6 +243,14 @@ public class JournalArticleImageUpgradeHelper {
 			throw portalException;
 		}
 	}
+
+	private static final String _DOCUMENT_LIBRARY_GET_FILE_URL_PATH =
+		"/c/document_library/get_file?";
+
+	private static final String _DOCUMENTS_URL_PATH = "/documents/";
+
+	private static final String _IMAGE_GALLERY_URL_PATH =
+		"/image/image_gallery?";
 
 	private static final Log _log = LogFactoryUtil.getLog(
 		JournalArticleImageUpgradeHelper.class);
