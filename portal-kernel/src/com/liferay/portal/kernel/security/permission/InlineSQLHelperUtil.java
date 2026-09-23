@@ -21,12 +21,12 @@ import java.util.List;
 public class InlineSQLHelperUtil {
 
 	public static <T extends BaseModel<T>> List<T> filter(
-		List<T> list, long... groupIds) {
+		List<T> list, String filterPKColumnName, long... groupIds) {
 
 		InlineSQLHelper inlineSQLPermission =
 			_inlineSQLPermissionSnapshot.get();
 
-		return inlineSQLPermission.filter(list, groupIds);
+		return inlineSQLPermission.filter(list, filterPKColumnName, groupIds);
 	}
 
 	public static <T extends Table<T>> Predicate getPermissionWherePredicate(

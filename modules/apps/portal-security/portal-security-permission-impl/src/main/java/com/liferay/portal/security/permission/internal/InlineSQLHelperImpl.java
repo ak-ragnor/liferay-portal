@@ -79,7 +79,7 @@ public class InlineSQLHelperImpl implements InlineSQLHelper {
 
 	@Override
 	public <T extends BaseModel<T>> List<T> filter(
-		List<T> list, long... groupIds) {
+		List<T> list, String filterPKColumnName, long... groupIds) {
 
 		if (list.isEmpty()) {
 			return list;
@@ -132,12 +132,16 @@ public class InlineSQLHelperImpl implements InlineSQLHelper {
 		Function<T, Object> groupIdGetterFunction =
 			attributeGetterFunctions.get("groupId");
 
+		Function<T, Object> filterPKGetterFunction =
+			attributeGetterFunctions.getOrDefault(
+				filterPKColumnName, BaseModel::getPrimaryKeyObj);
+
 		if ((groupIdGetterFunction != null) && !disabledGroupIds.isEmpty()) {
 			return ListUtil.filter(
 				list,
 				t -> {
 					if (permittedClassPKs.contains(
-							(Long)t.getPrimaryKeyObj())) {
+							(Long)filterPKGetterFunction.apply(t))) {
 
 						return true;
 					}
@@ -148,7 +152,9 @@ public class InlineSQLHelperImpl implements InlineSQLHelper {
 		}
 
 		return ListUtil.filter(
-			list, t -> permittedClassPKs.contains((Long)t.getPrimaryKeyObj()));
+			list,
+			t -> permittedClassPKs.contains(
+				(Long)filterPKGetterFunction.apply(t)));
 	}
 
 	@Override
