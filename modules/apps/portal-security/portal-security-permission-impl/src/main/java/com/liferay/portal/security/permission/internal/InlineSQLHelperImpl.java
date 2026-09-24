@@ -79,6 +79,13 @@ public class InlineSQLHelperImpl implements InlineSQLHelper {
 
 	@Override
 	public <T extends BaseModel<T>> List<T> filter(
+		List<T> list, long... groupIds) {
+
+		return filter(list, null, groupIds);
+	}
+
+	@Override
+	public <T extends BaseModel<T>> List<T> filter(
 		List<T> list, String filterPKColumnName, long... groupIds) {
 
 		if (list.isEmpty()) {
