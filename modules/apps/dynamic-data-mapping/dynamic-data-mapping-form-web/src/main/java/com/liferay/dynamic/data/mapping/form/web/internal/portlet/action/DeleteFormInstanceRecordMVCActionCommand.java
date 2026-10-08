@@ -5,15 +5,27 @@
 
 package com.liferay.dynamic.data.mapping.form.web.internal.portlet.action;
 
+import com.liferay.bulk.selection.BulkSelection;
+import com.liferay.bulk.selection.BulkSelectionAction;
+import com.liferay.bulk.selection.BulkSelectionFactory;
+import com.liferay.bulk.selection.BulkSelectionRunner;
 import com.liferay.dynamic.data.mapping.constants.DDMPortletKeys;
+import com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecord;
 import com.liferay.dynamic.data.mapping.service.DDMFormInstanceRecordService;
+import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.portlet.bridges.mvc.BaseMVCActionCommand;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
+import com.liferay.portal.kernel.servlet.SessionMessages;
+import com.liferay.portal.kernel.theme.ThemeDisplay;
+import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.ParamUtil;
 import com.liferay.portal.kernel.util.StringUtil;
+import com.liferay.portal.kernel.util.WebKeys;
 
 import jakarta.portlet.ActionRequest;
 import jakarta.portlet.ActionResponse;
+
+import java.util.Collections;
 
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -36,6 +48,12 @@ public class DeleteFormInstanceRecordMVCActionCommand
 			ActionRequest actionRequest, ActionResponse actionResponse)
 		throws Exception {
 
+		if (ParamUtil.getBoolean(actionRequest, "selectAll")) {
+			_deleteFormInstanceRecords(actionRequest, actionResponse);
+
+			return;
+		}
+
 		long[] deleteFormInstanceRecordIds = null;
 
 		long formInstanceRecordId = ParamUtil.getLong(
@@ -57,7 +75,57 @@ public class DeleteFormInstanceRecordMVCActionCommand
 		}
 	}
 
+	private void _deleteFormInstanceRecords(
+			ActionRequest actionRequest, ActionResponse actionResponse)
+		throws Exception {
+
+		BulkSelection<DDMFormInstanceRecord> bulkSelection =
+			_ddmFormInstanceRecordBulkSelectionFactory.create(
+				HashMapBuilder.put(
+					"createDate",
+					new String[] {String.valueOf(System.currentTimeMillis())}
+				).put(
+					"formInstanceId",
+					new String[] {
+						ParamUtil.getString(actionRequest, "formInstanceId")
+					}
+				).build());
+
+		ThemeDisplay themeDisplay = (ThemeDisplay)actionRequest.getAttribute(
+			WebKeys.THEME_DISPLAY);
+
+		_bulkSelectionRunner.run(
+			themeDisplay.getUser(), bulkSelection,
+			_deleteDDMFormInstanceRecordBulkSelectionAction,
+			Collections.emptyMap());
+
+		sendRedirect(actionRequest, actionResponse);
+
+		SessionMessages.add(
+			actionRequest, "requestProcessed",
+			_language.get(
+				themeDisplay.getLocale(), "deletion-started-for-all-entries"));
+	}
+
+	@Reference
+	private BulkSelectionRunner _bulkSelectionRunner;
+
+	@Reference(
+		target = "(model.class.name=com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecord)"
+	)
+	private BulkSelectionFactory<DDMFormInstanceRecord>
+		_ddmFormInstanceRecordBulkSelectionFactory;
+
 	@Reference
 	private DDMFormInstanceRecordService _ddmFormInstanceRecordService;
+
+	@Reference(
+		target = "(bulk.selection.action.key=delete.ddm.form.instance.record)"
+	)
+	private BulkSelectionAction<DDMFormInstanceRecord>
+		_deleteDDMFormInstanceRecordBulkSelectionAction;
+
+	@Reference
+	private Language _language;
 
 }
