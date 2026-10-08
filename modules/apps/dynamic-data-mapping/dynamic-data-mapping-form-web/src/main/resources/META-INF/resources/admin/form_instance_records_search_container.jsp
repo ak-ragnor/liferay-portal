@@ -10,6 +10,8 @@
 <%
 DDMFormViewFormInstanceRecordsDisplayContext ddmFormViewFormInstanceRecordsDisplayContext = ddmFormAdminDisplayContext.getDDMFormViewFormInstanceRecordsDisplayContext();
 
+DDMFormInstance ddmFormInstance = ddmFormViewFormInstanceRecordsDisplayContext.getDDMFormInstance();
+
 PortletURL portletURL = ddmFormViewFormInstanceRecordsDisplayContext.getPortletURL();
 %>
 
@@ -22,10 +24,6 @@ PortletURL portletURL = ddmFormViewFormInstanceRecordsDisplayContext.getPortletU
 	actionDropdownItems="<%= ddmFormViewFormInstanceRecordsDisplayContext.getActionItemsDropdownItems() %>"
 	additionalProps='<%=
 		HashMapBuilder.<String, Object>put(
-			"allSelectedLocalizedMessage", ddmFormViewFormInstanceRecordsDisplayContext.getLocalizedMessage(themeDisplay.getLocale(), "all-selected")
-		).put(
-			"ddmFormInstanceRecordIds", ddmFormViewFormInstanceRecordsDisplayContext.getDDMFormInstanceRecordIds()
-		).put(
 			"deleteFormInstanceRecordURL", deleteFormInstanceRecordURL.toString()
 		).build()
 	%>'
@@ -41,7 +39,7 @@ PortletURL portletURL = ddmFormViewFormInstanceRecordsDisplayContext.getPortletU
 	sortingURL="<%= ddmFormViewFormInstanceRecordsDisplayContext.getSortingURL() %>"
 />
 
-<c:if test="<%= DDMFormInstanceExpirationStatusUtil.isFormExpired(ddmFormViewFormInstanceRecordsDisplayContext.getDDMFormInstance(), timeZone) %>">
+<c:if test="<%= DDMFormInstanceExpirationStatusUtil.isFormExpired(ddmFormInstance, timeZone) %>">
 	<clay:stripe
 		dismissible="<%= true %>"
 		displayType="warning"
@@ -59,6 +57,8 @@ PortletURL portletURL = ddmFormViewFormInstanceRecordsDisplayContext.getPortletU
 >
 	<aui:form action="<%= portletURL %>" method="post" name="searchContainerForm">
 		<aui:input name="deleteFormInstanceRecordIds" type="hidden" />
+		<aui:input name="formInstanceId" type="hidden" value="<%= ddmFormInstance.getFormInstanceId() %>" />
+		<aui:input name="selectAll" type="hidden" />
 
 		<liferay-ui:search-container
 			id="<%= ddmFormViewFormInstanceRecordsDisplayContext.getSearchContainerId() %>"
