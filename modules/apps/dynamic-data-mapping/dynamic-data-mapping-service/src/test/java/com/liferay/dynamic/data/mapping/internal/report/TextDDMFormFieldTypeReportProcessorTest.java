@@ -226,11 +226,17 @@ public class TextDDMFormFieldTypeReportProcessorTest {
 				ddmFormInstanceRecords, ddmFormInstanceRecords.size())
 		);
 
+		JSONObject fieldJSONObject = JSONUtil.put(
+			"type", DDMFormFieldTypeConstants.TEXT);
+
+		fieldJSONObject.put(
+			"values",
+			JSONUtil.putAll(
+				JSONUtil.put("formInstanceRecordId", formInstanceRecordId)));
+
 		JSONObject processedFieldJSONObject =
 			_textDDMFormFieldTypeReportProcessor.process(
-				ddmFormFieldValue,
-				JSONUtil.put("type", DDMFormFieldTypeConstants.TEXT),
-				formInstanceRecordId,
+				ddmFormFieldValue, fieldJSONObject, formInstanceRecordId,
 				DDMFormInstanceReportConstants.EVENT_DELETE_RECORD_VERSION);
 
 		Assert.assertEquals(
@@ -243,6 +249,44 @@ public class TextDDMFormFieldTypeReportProcessorTest {
 		JSONObject jsonObject = valuesJSONArray.getJSONObject(0);
 
 		Assert.assertEquals("text " + maxLength, jsonObject.getString("value"));
+	}
+
+	@Test
+	public void testProcessDDMFormInstanceReportOnDeleteEventWhenFormInstanceRecordIsNotInValues()
+		throws Exception {
+
+		DDMFormFieldValue ddmFormFieldValue = Mockito.mock(
+			DDMFormFieldValue.class);
+
+		Value value = new LocalizedValue();
+
+		value.addString(value.getDefaultLocale(), "text 3");
+		value.setDefaultLocale(LocaleUtil.US);
+
+		Mockito.when(
+			ddmFormFieldValue.getValue()
+		).thenReturn(
+			value
+		);
+
+		JSONArray valuesJSONArray = JSONUtil.putAll(
+			JSONUtil.put("formInstanceRecordId", 1));
+
+		JSONObject fieldJSONObject = JSONUtil.put("totalEntries", 2);
+
+		fieldJSONObject.put("values", valuesJSONArray);
+
+		JSONObject processedFieldJSONObject =
+			_textDDMFormFieldTypeReportProcessor.process(
+				ddmFormFieldValue, fieldJSONObject, 3,
+				DDMFormInstanceReportConstants.EVENT_DELETE_RECORD_VERSION);
+
+		Assert.assertEquals(1, processedFieldJSONObject.getInt("totalEntries"));
+		Assert.assertEquals(
+			valuesJSONArray.toString(),
+			String.valueOf(processedFieldJSONObject.getJSONArray("values")));
+
+		Mockito.verifyNoInteractions(_ddmFormInstanceRecordLocalService);
 	}
 
 	@Test
