@@ -12,7 +12,6 @@ import com.liferay.bulk.selection.BulkSelectionRunner;
 import com.liferay.dynamic.data.mapping.constants.DDMPortletKeys;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecord;
 import com.liferay.dynamic.data.mapping.service.DDMFormInstanceRecordService;
-import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.portlet.bridges.mvc.BaseMVCActionCommand;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
 import com.liferay.portal.kernel.servlet.SessionMessages;
@@ -99,12 +98,11 @@ public class DeleteFormInstanceRecordMVCActionCommand
 			_deleteDDMFormInstanceRecordBulkSelectionAction,
 			Collections.emptyMap());
 
-		sendRedirect(actionRequest, actionResponse);
+		hideDefaultSuccessMessage(actionRequest);
 
-		SessionMessages.add(
-			actionRequest, "requestProcessed",
-			_language.get(
-				themeDisplay.getLocale(), "deletion-started-for-all-entries"));
+		SessionMessages.add(actionRequest, "deleteAllFormInstanceRecords");
+
+		sendRedirect(actionRequest, actionResponse);
 	}
 
 	@Reference
@@ -124,8 +122,5 @@ public class DeleteFormInstanceRecordMVCActionCommand
 	)
 	private BulkSelectionAction<DDMFormInstanceRecord>
 		_deleteDDMFormInstanceRecordBulkSelectionAction;
-
-	@Reference
-	private Language _language;
 
 }
