@@ -20,6 +20,7 @@ import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.Validator;
 
 import java.math.BigDecimal;
@@ -91,7 +92,15 @@ public class NumericDDMFormFieldTypeReportProcessor
 			if ((maxValueBigDecimal == null) ||
 				(valueBigDecimal.compareTo(maxValueBigDecimal) == 1)) {
 
-				summaryJSONObject.put("max", valueBigDecimal.toString());
+				summaryJSONObject.put(
+					"max", valueBigDecimal.toString()
+				).put(
+					"maxCount", 1
+				);
+			}
+			else if (valueBigDecimal.compareTo(maxValueBigDecimal) == 0) {
+				summaryJSONObject.put(
+					"maxCount", summaryJSONObject.getInt("maxCount") + 1);
 			}
 
 			BigDecimal minValueBigDecimal = null;
@@ -104,7 +113,15 @@ public class NumericDDMFormFieldTypeReportProcessor
 			if ((minValueBigDecimal == null) ||
 				(valueBigDecimal.compareTo(minValueBigDecimal) == -1)) {
 
-				summaryJSONObject.put("min", valueBigDecimal.toString());
+				summaryJSONObject.put(
+					"min", valueBigDecimal.toString()
+				).put(
+					"minCount", 1
+				);
+			}
+			else if (valueBigDecimal.compareTo(minValueBigDecimal) == 0) {
+				summaryJSONObject.put(
+					"minCount", summaryJSONObject.getInt("minCount") + 1);
 			}
 
 			sumBigDecimal = sumBigDecimal.add(valueBigDecimal);
@@ -113,48 +130,57 @@ public class NumericDDMFormFieldTypeReportProcessor
 					DDMFormInstanceReportConstants.
 						EVENT_DELETE_RECORD_VERSION)) {
 
-			DDMFormInstanceRecord ddmFormInstanceRecord =
-				ddmFormInstanceRecordLocalService.getFormInstanceRecord(
-					formInstanceRecordId);
+			boolean lastMaxDeleted = _decrementCount(
+				"max", summaryJSONObject, valueBigDecimal);
+			boolean lastMinDeleted = _decrementCount(
+				"min", summaryJSONObject, valueBigDecimal);
 
-			DDMFormInstance ddmFormInstance =
-				ddmFormInstanceRecord.getFormInstance();
+			if (lastMaxDeleted || lastMinDeleted) {
+				List<DDMFormInstanceRecord> ddmFormInstanceRecords =
+					_getFormInstanceRecords(formInstanceRecordId);
 
-			List<DDMFormInstanceRecord> ddmFormInstanceRecords =
-				TransformUtil.transform(
-					ddmFormInstance.getFormInstanceRecords(),
-					currentDDMFormInstanceRecord -> {
-						if (formInstanceRecordId ==
-								currentDDMFormInstanceRecord.
-									getFormInstanceRecordId()) {
+				if (ddmFormInstanceRecords.isEmpty()) {
+					jsonObject.remove("summary");
 
-							return null;
-						}
+					return jsonObject;
+				}
 
-						return currentDDMFormInstanceRecord;
-					});
+				List<BigDecimal> valueBigDecimals = _getValueBigDecimals(
+					ddmFormFieldValue.getName(), ddmFormInstanceRecords);
 
-			if (ddmFormInstanceRecords.isEmpty()) {
-				jsonObject.remove("summary");
+				BigDecimal maxValueBigDecimal = Collections.max(
+					valueBigDecimals,
+					Comparator.comparingDouble(Number::doubleValue));
+				BigDecimal minValueBigDecimal = Collections.min(
+					valueBigDecimals,
+					Comparator.comparingDouble(Number::doubleValue));
 
-				return jsonObject;
+				summaryJSONObject.put(
+					"max", maxValueBigDecimal.toString()
+				).put(
+					"maxCount",
+					ListUtil.count(
+						valueBigDecimals,
+						currentValueBigDecimal -> {
+							int result = currentValueBigDecimal.compareTo(
+								maxValueBigDecimal);
+
+							return result == 0;
+						})
+				).put(
+					"min", minValueBigDecimal.toString()
+				).put(
+					"minCount",
+					ListUtil.count(
+						valueBigDecimals,
+						currentValueBigDecimal -> {
+							int result = currentValueBigDecimal.compareTo(
+								minValueBigDecimal);
+
+							return result == 0;
+						})
+				);
 			}
-
-			List<BigDecimal> valueBigDecimals = _getValueBigDecimals(
-				ddmFormFieldValue.getName(), ddmFormInstanceRecords);
-
-			BigDecimal maxValueBigDecimal = Collections.max(
-				valueBigDecimals,
-				Comparator.comparingDouble(Number::doubleValue));
-			BigDecimal minValueBigDecimal = Collections.min(
-				valueBigDecimals,
-				Comparator.comparingDouble(Number::doubleValue));
-
-			summaryJSONObject.put(
-				"max", maxValueBigDecimal.toString()
-			).put(
-				"min", minValueBigDecimal.toString()
-			);
 
 			sumBigDecimal = sumBigDecimal.subtract(valueBigDecimal);
 		}
@@ -238,6 +264,56 @@ public class NumericDDMFormFieldTypeReportProcessor
 
 			return null;
 		}
+	}
+
+	private boolean _decrementCount(
+		String key, JSONObject summaryJSONObject, BigDecimal valueBigDecimal) {
+
+		if (!summaryJSONObject.has(key)) {
+			return true;
+		}
+
+		BigDecimal bigDecimal = new BigDecimal(
+			summaryJSONObject.getString(key));
+
+		if (valueBigDecimal.compareTo(bigDecimal) != 0) {
+			return false;
+		}
+
+		int count = summaryJSONObject.getInt(key + "Count");
+
+		if (count > 1) {
+			summaryJSONObject.put(key + "Count", count - 1);
+
+			return false;
+		}
+
+		return true;
+	}
+
+	private List<DDMFormInstanceRecord> _getFormInstanceRecords(
+			long formInstanceRecordId)
+		throws Exception {
+
+		DDMFormInstanceRecord ddmFormInstanceRecord =
+			ddmFormInstanceRecordLocalService.getFormInstanceRecord(
+				formInstanceRecordId);
+
+		DDMFormInstance ddmFormInstance =
+			ddmFormInstanceRecord.getFormInstance();
+
+		return TransformUtil.transform(
+			ddmFormInstance.getFormInstanceRecords(),
+			currentDDMFormInstanceRecord -> {
+				if (formInstanceRecordId ==
+						currentDDMFormInstanceRecord.
+							getFormInstanceRecordId()) {
+
+					return null;
+				}
+
+				return currentDDMFormInstanceRecord;
+			});
 	}
 
 	private List<BigDecimal> _getValueBigDecimals(
