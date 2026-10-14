@@ -8,6 +8,8 @@
 <%@ include file="/admin/init.jsp" %>
 
 <%
+BulkSelectionRunner bulkSelectionRunner = BulkSelectionRunnerUtil.getBulkSelectionRunner();
+
 DDMFormViewFormInstanceRecordsDisplayContext ddmFormViewFormInstanceRecordsDisplayContext = ddmFormAdminDisplayContext.getDDMFormViewFormInstanceRecordsDisplayContext();
 
 DDMFormInstance ddmFormInstance = ddmFormViewFormInstanceRecordsDisplayContext.getDDMFormInstance();
@@ -19,6 +21,21 @@ PortletURL portletURL = ddmFormViewFormInstanceRecordsDisplayContext.getPortletU
 	<portlet:param name="mvcPath" value="/admin/view_form_instance_records.jsp" />
 	<portlet:param name="redirect" value="<%= currentURL %>" />
 </portlet:actionURL>
+
+<div>
+	<react:component
+		module="{BulkStatus} from dynamic-data-mapping-form-web"
+		props='<%=
+			HashMapBuilder.<String, Object>put(
+				"bulkInProgress", bulkSelectionRunner.isBusy(user)
+			).put(
+				"deletionStarted", SessionMessages.contains(renderRequest, "deleteAllFormInstanceRecords")
+			).put(
+				"pathModule", PortalUtil.getPathModule()
+			).build()
+		%>'
+	/>
+</div>
 
 <clay:management-toolbar
 	actionDropdownItems="<%= ddmFormViewFormInstanceRecordsDisplayContext.getActionItemsDropdownItems() %>"
