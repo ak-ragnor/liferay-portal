@@ -866,6 +866,55 @@ public class DLFileEntryLocalServiceTest {
 	}
 
 	@Test
+	public void testCheckInFileEntryWithSameContentKeepsStoreFile()
+		throws Exception {
+
+		byte[] bytes = RandomTestUtil.randomBytes();
+
+		DLFileEntry dlFileEntry = DLFileEntryLocalServiceUtil.addFileEntry(
+			null, TestPropsValues.getUserId(), _group.getGroupId(),
+			_group.getGroupId(), DLFolderConstants.DEFAULT_PARENT_FOLDER_ID,
+			StringUtil.randomString(), ContentTypes.APPLICATION_OCTET_STREAM,
+			StringUtil.randomString(), StringUtil.randomString(),
+			StringPool.BLANK, StringPool.BLANK, -1, new HashMap<>(), null,
+			new ByteArrayInputStream(bytes), bytes.length, null, null, null,
+			ServiceContextTestUtil.getServiceContext(
+				_group.getGroupId(), TestPropsValues.getUserId()));
+
+		DLFileVersion dlFileVersion = dlFileEntry.getLatestFileVersion(true);
+
+		DLFileEntryLocalServiceUtil.checkOutFileEntry(
+			TestPropsValues.getUserId(), dlFileEntry.getFileEntryId(),
+			ServiceContextTestUtil.getServiceContext(_group.getGroupId()));
+
+		DLFileEntryLocalServiceUtil.updateFileEntry(
+			TestPropsValues.getUserId(), dlFileEntry.getFileEntryId(),
+			dlFileEntry.getFileName(), ContentTypes.APPLICATION_OCTET_STREAM,
+			dlFileEntry.getTitle(), StringUtil.randomString(), StringPool.BLANK,
+			StringPool.BLANK, DLVersionNumberIncrease.NONE,
+			dlFileEntry.getFileEntryTypeId(), Collections.emptyMap(), null,
+			new ByteArrayInputStream(bytes), bytes.length, null, null, null,
+			ServiceContextTestUtil.getServiceContext(_group.getGroupId()));
+
+		DLFileEntryLocalServiceUtil.checkInFileEntry(
+			TestPropsValues.getUserId(), dlFileEntry.getFileEntryId(),
+			DLVersionNumberIncrease.NONE, StringPool.BLANK,
+			ServiceContextTestUtil.getServiceContext(_group.getGroupId()));
+
+		DLFileVersion checkedInDLFileVersion = dlFileEntry.getLatestFileVersion(
+			true);
+
+		Assert.assertEquals(
+			dlFileVersion.getStoreFileName(),
+			checkedInDLFileVersion.getStoreFileName());
+		Assert.assertTrue(
+			DLStoreUtil.hasFile(
+				dlFileEntry.getCompanyId(), dlFileEntry.getDataRepositoryId(),
+				dlFileEntry.getName(),
+				checkedInDLFileVersion.getStoreFileName()));
+	}
+
+	@Test
 	public void testCheckinFileEntryDeletesPWC() throws Exception {
 		ServiceContext serviceContext =
 			ServiceContextTestUtil.getServiceContext(
