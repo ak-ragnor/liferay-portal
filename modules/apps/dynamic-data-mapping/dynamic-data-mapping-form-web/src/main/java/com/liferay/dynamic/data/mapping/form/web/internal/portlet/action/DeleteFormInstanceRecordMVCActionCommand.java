@@ -10,10 +10,13 @@ import com.liferay.bulk.selection.BulkSelectionAction;
 import com.liferay.bulk.selection.BulkSelectionFactory;
 import com.liferay.bulk.selection.BulkSelectionRunner;
 import com.liferay.dynamic.data.mapping.constants.DDMPortletKeys;
+import com.liferay.dynamic.data.mapping.model.DDMFormInstance;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecord;
 import com.liferay.dynamic.data.mapping.service.DDMFormInstanceRecordService;
 import com.liferay.portal.kernel.portlet.bridges.mvc.BaseMVCActionCommand;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
+import com.liferay.portal.kernel.security.permission.ActionKeys;
+import com.liferay.portal.kernel.security.permission.resource.ModelResourcePermission;
 import com.liferay.portal.kernel.servlet.SessionMessages;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.HashMapBuilder;
@@ -78,6 +81,16 @@ public class DeleteFormInstanceRecordMVCActionCommand
 			ActionRequest actionRequest, ActionResponse actionResponse)
 		throws Exception {
 
+		ThemeDisplay themeDisplay = (ThemeDisplay)actionRequest.getAttribute(
+			WebKeys.THEME_DISPLAY);
+
+		long formInstanceId = ParamUtil.getLong(
+			actionRequest, "formInstanceId");
+
+		_ddmFormInstanceModelResourcePermission.check(
+			themeDisplay.getPermissionChecker(), formInstanceId,
+			ActionKeys.DELETE);
+
 		BulkSelection<DDMFormInstanceRecord> bulkSelection =
 			_ddmFormInstanceRecordBulkSelectionFactory.create(
 				HashMapBuilder.put(
@@ -85,13 +98,8 @@ public class DeleteFormInstanceRecordMVCActionCommand
 					new String[] {String.valueOf(System.currentTimeMillis())}
 				).put(
 					"formInstanceId",
-					new String[] {
-						ParamUtil.getString(actionRequest, "formInstanceId")
-					}
+					new String[] {String.valueOf(formInstanceId)}
 				).build());
-
-		ThemeDisplay themeDisplay = (ThemeDisplay)actionRequest.getAttribute(
-			WebKeys.THEME_DISPLAY);
 
 		_bulkSelectionRunner.run(
 			themeDisplay.getUser(), bulkSelection,
@@ -107,6 +115,12 @@ public class DeleteFormInstanceRecordMVCActionCommand
 
 	@Reference
 	private BulkSelectionRunner _bulkSelectionRunner;
+
+	@Reference(
+		target = "(model.class.name=com.liferay.dynamic.data.mapping.model.DDMFormInstance)"
+	)
+	private ModelResourcePermission<DDMFormInstance>
+		_ddmFormInstanceModelResourcePermission;
 
 	@Reference(
 		target = "(model.class.name=com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecord)"
