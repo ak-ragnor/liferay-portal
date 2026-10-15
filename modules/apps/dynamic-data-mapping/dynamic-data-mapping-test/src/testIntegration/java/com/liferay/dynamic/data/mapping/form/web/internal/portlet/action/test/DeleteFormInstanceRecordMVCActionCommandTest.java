@@ -16,6 +16,7 @@ import com.liferay.dynamic.data.mapping.test.util.DDMFormInstanceRecordTestUtil;
 import com.liferay.dynamic.data.mapping.test.util.DDMFormInstanceTestUtil;
 import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
+import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.exception.ModelListenerException;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
@@ -27,9 +28,11 @@ import com.liferay.portal.kernel.model.Portlet;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.portlet.PortletConfigFactoryUtil;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
+import com.liferay.portal.kernel.security.auth.PrincipalException;
 import com.liferay.portal.kernel.security.permission.PermissionCheckerFactoryUtil;
 import com.liferay.portal.kernel.service.CompanyLocalServiceUtil;
 import com.liferay.portal.kernel.service.PortletLocalService;
+import com.liferay.portal.kernel.test.AssertUtils;
 import com.liferay.portal.kernel.test.portlet.MockActionResponse;
 import com.liferay.portal.kernel.test.portlet.MockLiferayPortletActionRequest;
 import com.liferay.portal.kernel.test.portlet.MockLiferayPortletActionResponse;
@@ -45,6 +48,8 @@ import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
+
+import jakarta.portlet.PortletException;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -201,9 +206,16 @@ public class DeleteFormInstanceRecordMVCActionCommandTest {
 
 		_user = UserTestUtil.addUser();
 
-		_mvcActionCommand.processAction(
-			_getMockLiferayPortletActionRequest(_user),
-			new MockLiferayPortletActionResponse());
+		AssertUtils.assertFailure(
+			PortletException.class,
+			StringBundler.concat(
+				PrincipalException.MustHavePermission.class.getName(),
+				": User ", _user.getUserId(), " must have DELETE permission ",
+				"for ", DDMFormInstance.class.getName(), " ",
+				_ddmFormInstance.getFormInstanceId()),
+			() -> _mvcActionCommand.processAction(
+				_getMockLiferayPortletActionRequest(_user),
+				new MockLiferayPortletActionResponse()));
 
 		Assert.assertEquals(
 			1,
