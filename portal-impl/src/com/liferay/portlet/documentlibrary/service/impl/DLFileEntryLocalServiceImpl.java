@@ -133,6 +133,7 @@ import com.liferay.portal.kernel.transaction.Transactional;
 import com.liferay.portal.kernel.trash.helper.TrashHelper;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.Constants;
+import com.liferay.portal.kernel.util.DigesterUtil;
 import com.liferay.portal.kernel.util.EscapableLocalizableFunction;
 import com.liferay.portal.kernel.util.FileUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
@@ -162,6 +163,7 @@ import com.liferay.portlet.documentlibrary.util.comparator.DLFileEntryMetadataId
 import com.liferay.ratings.kernel.service.RatingsStatsLocalService;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 
@@ -2974,6 +2976,19 @@ public class DLFileEntryLocalServiceImpl
 		return null;
 	}
 
+	private String _getChecksum(DLFileVersion dlFileVersion) {
+		try (InputStream inputStream = dlFileVersion.getContentStream(false)) {
+			return DigesterUtil.digestBase64(inputStream);
+		}
+		catch (IOException | PortalException exception) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(exception);
+			}
+
+			return null;
+		}
+	}
+
 	private List<DLFileEntry> _getFileEntriesByReviewDate(
 		long companyId, Date reviewDateLT, Date reviewDateGT) {
 
@@ -3132,6 +3147,24 @@ public class DLFileEntryLocalServiceImpl
 		}
 
 		return false;
+	}
+
+	private boolean _hasSameContent(
+		DLFileVersion dlFileVersion1, DLFileVersion dlFileVersion2) {
+
+		if (dlFileVersion1.getSize() != dlFileVersion2.getSize()) {
+			return false;
+		}
+
+		String checksum = _getChecksum(dlFileVersion1);
+
+		if ((checksum == null) ||
+			!checksum.equals(_getChecksum(dlFileVersion2))) {
+
+			return false;
+		}
+
+		return true;
 	}
 
 	private boolean _isInTrashExplicitly(TrashedModel trashedModel) {
@@ -3595,6 +3628,14 @@ public class DLFileEntryLocalServiceImpl
 
 		String oldStoreFileName = lastDLFileVersion.getStoreFileName();
 
+		boolean sameContent = false;
+
+		if (version.equals(lastDLFileVersion.getVersion()) &&
+			_hasSameContent(latestDLFileVersion, lastDLFileVersion)) {
+
+			sameContent = true;
+		}
+
 		lastDLFileVersion.setUserId(latestDLFileVersion.getUserId());
 		lastDLFileVersion.setUserName(latestDLFileVersion.getUserName());
 		lastDLFileVersion.setModifiedDate(
@@ -3611,7 +3652,11 @@ public class DLFileEntryLocalServiceImpl
 			latestDLFileVersion.getFileEntryTypeId());
 		lastDLFileVersion.setVersion(version);
 		lastDLFileVersion.setSize(latestDLFileVersion.getSize());
-		lastDLFileVersion.setStoreUUID(String.valueOf(UUID.randomUUID()));
+
+		if (!sameContent) {
+			lastDLFileVersion.setStoreUUID(String.valueOf(UUID.randomUUID()));
+		}
+
 		lastDLFileVersion.setDisplayDate(latestDLFileVersion.getDisplayDate());
 		lastDLFileVersion.setExpirationDate(
 			latestDLFileVersion.getExpirationDate());
@@ -3660,11 +3705,14 @@ public class DLFileEntryLocalServiceImpl
 
 		// File
 
-		_deleteFile(
-			user.getCompanyId(), dlFileEntry.getDataRepositoryId(),
-			dlFileEntry.getName(), oldStoreFileName);
+		if (!sameContent) {
+			_deleteFile(
+				user.getCompanyId(), dlFileEntry.getDataRepositoryId(),
+				dlFileEntry.getName(), oldStoreFileName);
 
-		_copyFileVersion(dlFileEntry, latestDLFileVersion, lastDLFileVersion);
+			_copyFileVersion(
+				dlFileEntry, latestDLFileVersion, lastDLFileVersion);
+		}
 
 		// Latest file version
 
