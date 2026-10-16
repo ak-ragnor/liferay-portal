@@ -87,8 +87,9 @@ public abstract class BaseSaveConfigurationMVCActionCommand
 
 		saveAICreatorOpenAIConfiguration(
 			apiKey, ParamUtil.getBoolean(actionRequest, "enableChatGPT"),
-			ParamUtil.getBoolean(actionRequest, "enableDALLE"), imageModel,
-			ParamUtil.getString(actionRequest, "imageSizes"), themeDisplay);
+			ParamUtil.getBoolean(actionRequest, "enableOpenAIImageGeneration"),
+			imageModel, ParamUtil.getString(actionRequest, "imageSizes"),
+			themeDisplay);
 
 		SessionMessages.add(
 			actionRequest, "requestProcessed",
@@ -100,8 +101,9 @@ public abstract class BaseSaveConfigurationMVCActionCommand
 	}
 
 	protected abstract void saveAICreatorOpenAIConfiguration(
-			String apiKey, boolean enableChatGPT, boolean enableDALLE,
-			String imageModel, String imageSizes, ThemeDisplay themeDisplay)
+			String apiKey, boolean enableChatGPT,
+			boolean enableOpenAIImageGeneration, String imageModel,
+			String imageSizes, ThemeDisplay themeDisplay)
 		throws ConfigurationException;
 
 	@Reference(
