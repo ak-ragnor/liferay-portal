@@ -6,6 +6,7 @@
 package com.liferay.dynamic.data.mapping.internal.report;
 
 import com.liferay.dynamic.data.mapping.constants.DDMFormInstanceReportConstants;
+import com.liferay.dynamic.data.mapping.internal.util.DDMFormInstanceRecordThreadLocal;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstance;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecord;
 import com.liferay.dynamic.data.mapping.model.Value;
@@ -135,51 +136,16 @@ public class NumericDDMFormFieldTypeReportProcessor
 			boolean lastMinDeleted = _decrementCount(
 				"min", summaryJSONObject, valueBigDecimal);
 
-			if (lastMaxDeleted || lastMinDeleted) {
-				List<DDMFormInstanceRecord> ddmFormInstanceRecords =
-					_getFormInstanceRecords(formInstanceRecordId);
+			if ((lastMaxDeleted || lastMinDeleted) &&
+				!DDMFormInstanceRecordThreadLocal.isDeleteInProcess()) {
 
-				if (ddmFormInstanceRecords.isEmpty()) {
-					jsonObject.remove("summary");
+				updateMaxAndMin(
+					_getFormInstanceRecords(formInstanceRecordId), jsonObject,
+					ddmFormFieldValue.getName());
 
+				if (!jsonObject.has("summary")) {
 					return jsonObject;
 				}
-
-				List<BigDecimal> valueBigDecimals = _getValueBigDecimals(
-					ddmFormFieldValue.getName(), ddmFormInstanceRecords);
-
-				BigDecimal maxValueBigDecimal = Collections.max(
-					valueBigDecimals,
-					Comparator.comparingDouble(Number::doubleValue));
-				BigDecimal minValueBigDecimal = Collections.min(
-					valueBigDecimals,
-					Comparator.comparingDouble(Number::doubleValue));
-
-				summaryJSONObject.put(
-					"max", maxValueBigDecimal.toString()
-				).put(
-					"maxCount",
-					ListUtil.count(
-						valueBigDecimals,
-						currentValueBigDecimal -> {
-							int result = currentValueBigDecimal.compareTo(
-								maxValueBigDecimal);
-
-							return result == 0;
-						})
-				).put(
-					"min", minValueBigDecimal.toString()
-				).put(
-					"minCount",
-					ListUtil.count(
-						valueBigDecimals,
-						currentValueBigDecimal -> {
-							int result = currentValueBigDecimal.compareTo(
-								minValueBigDecimal);
-
-							return result == 0;
-						})
-				);
 			}
 
 			sumBigDecimal = sumBigDecimal.subtract(valueBigDecimal);
@@ -202,6 +168,53 @@ public class NumericDDMFormFieldTypeReportProcessor
 		jsonObject.put("summary", summaryJSONObject);
 
 		return jsonObject;
+	}
+
+	public void updateMaxAndMin(
+		List<DDMFormInstanceRecord> ddmFormInstanceRecords,
+		JSONObject fieldJSONObject, String name) {
+
+		List<BigDecimal> valueBigDecimals = _getValueBigDecimals(
+			name, ddmFormInstanceRecords);
+
+		if (valueBigDecimals.isEmpty()) {
+			fieldJSONObject.remove("summary");
+
+			return;
+		}
+
+		JSONObject summaryJSONObject = fieldJSONObject.getJSONObject("summary");
+
+		BigDecimal maxValueBigDecimal = Collections.max(
+			valueBigDecimals, Comparator.comparingDouble(Number::doubleValue));
+		BigDecimal minValueBigDecimal = Collections.min(
+			valueBigDecimals, Comparator.comparingDouble(Number::doubleValue));
+
+		summaryJSONObject.put(
+			"max", maxValueBigDecimal.toString()
+		).put(
+			"maxCount",
+			ListUtil.count(
+				valueBigDecimals,
+				currentValueBigDecimal -> {
+					int result = currentValueBigDecimal.compareTo(
+						maxValueBigDecimal);
+
+					return result == 0;
+				})
+		).put(
+			"min", minValueBigDecimal.toString()
+		).put(
+			"minCount",
+			ListUtil.count(
+				valueBigDecimals,
+				currentValueBigDecimal -> {
+					int result = currentValueBigDecimal.compareTo(
+						minValueBigDecimal);
+
+					return result == 0;
+				})
+		);
 	}
 
 	protected String formatBigDecimal(BigDecimal bigDecimal) {
