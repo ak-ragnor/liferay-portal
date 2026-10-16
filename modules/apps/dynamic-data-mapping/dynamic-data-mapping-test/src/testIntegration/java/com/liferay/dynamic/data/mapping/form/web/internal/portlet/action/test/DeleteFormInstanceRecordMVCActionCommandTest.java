@@ -7,13 +7,17 @@ package com.liferay.dynamic.data.mapping.form.web.internal.portlet.action.test;
 
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.dynamic.data.mapping.constants.DDMPortletKeys;
+import com.liferay.dynamic.data.mapping.model.DDMForm;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstance;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecord;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstanceReport;
 import com.liferay.dynamic.data.mapping.service.DDMFormInstanceRecordLocalService;
 import com.liferay.dynamic.data.mapping.service.DDMFormInstanceReportLocalService;
+import com.liferay.dynamic.data.mapping.storage.DDMFormValues;
 import com.liferay.dynamic.data.mapping.test.util.DDMFormInstanceRecordTestUtil;
 import com.liferay.dynamic.data.mapping.test.util.DDMFormInstanceTestUtil;
+import com.liferay.dynamic.data.mapping.test.util.DDMFormTestUtil;
+import com.liferay.dynamic.data.mapping.test.util.DDMFormValuesTestUtil;
 import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
 import com.liferay.petra.string.StringBundler;
@@ -43,6 +47,7 @@ import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.test.util.UserTestUtil;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
+import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.JavaConstants;
 import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.portal.test.rule.Inject;
@@ -150,32 +155,9 @@ public class DeleteFormInstanceRecordMVCActionCommandTest {
 				addDDMFormInstanceRecordWithRandomValues(
 					_ddmFormInstance, _group, TestPropsValues.getUserId());
 
-		Bundle bundle = FrameworkUtil.getBundle(
-			DeleteFormInstanceRecordMVCActionCommandTest.class);
-
-		BundleContext bundleContext = bundle.getBundleContext();
-
 		ServiceRegistration<ModelListener<DDMFormInstanceRecord>>
-			serviceRegistration = bundleContext.registerService(
-				(Class<ModelListener<DDMFormInstanceRecord>>)
-					(Class<?>)ModelListener.class,
-				new BaseModelListener<DDMFormInstanceRecord>() {
-
-					@Override
-					public void onBeforeRemove(
-							DDMFormInstanceRecord ddmFormInstanceRecord)
-						throws ModelListenerException {
-
-						if (ddmFormInstanceRecord.getFormInstanceRecordId() ==
-								ddmFormInstanceRecord2.
-									getFormInstanceRecordId()) {
-
-							throw new ModelListenerException();
-						}
-					}
-
-				},
-				null);
+			serviceRegistration = _registerModelListener(
+				ddmFormInstanceRecord2.getFormInstanceRecordId());
 
 		try {
 			_mvcActionCommand.processAction(
@@ -195,6 +177,71 @@ public class DeleteFormInstanceRecordMVCActionCommandTest {
 		Assert.assertNull(
 			_ddmFormInstanceRecordLocalService.fetchFormInstanceRecord(
 				ddmFormInstanceRecord3.getFormInstanceRecordId()));
+	}
+
+	@Test
+	public void testProcessActionWithSelectAllWhenNumericEntriesRemain()
+		throws Exception {
+
+		DDMForm ddmForm = DDMFormTestUtil.createDDMForm();
+
+		ddmForm.addDDMFormField(
+			DDMFormTestUtil.createNumericDDMFormField(
+				"number", "number", "integer", false, false, false,
+				StringPool.BLANK, StringPool.BLANK, StringPool.BLANK));
+
+		_ddmFormInstance = DDMFormInstanceTestUtil.addDDMFormInstance(
+			ddmForm, _group, TestPropsValues.getUserId());
+
+		long[] formInstanceRecordIds = new long[5];
+
+		for (int i = 0; i < formInstanceRecordIds.length; i++) {
+			DDMFormValues ddmFormValues =
+				DDMFormValuesTestUtil.createDDMFormValues(ddmForm);
+
+			ddmFormValues.addDDMFormFieldValue(
+				DDMFormValuesTestUtil.createUnlocalizedDDMFormFieldValue(
+					"number", String.valueOf(i + 1)));
+
+			DDMFormInstanceRecord ddmFormInstanceRecord =
+				DDMFormInstanceRecordTestUtil.addDDMFormInstanceRecord(
+					_ddmFormInstance, ddmFormValues, _group,
+					TestPropsValues.getUserId());
+
+			formInstanceRecordIds[i] =
+				ddmFormInstanceRecord.getFormInstanceRecordId();
+		}
+
+		ServiceRegistration<ModelListener<DDMFormInstanceRecord>>
+			serviceRegistration = _registerModelListener(
+				formInstanceRecordIds[1], formInstanceRecordIds[3]);
+
+		try {
+			_mvcActionCommand.processAction(
+				_getMockLiferayPortletActionRequest(TestPropsValues.getUser()),
+				new MockLiferayPortletActionResponse());
+		}
+		finally {
+			serviceRegistration.unregister();
+		}
+
+		DDMFormInstanceReport ddmFormInstanceReport =
+			_ddmFormInstanceReportLocalService.
+				getFormInstanceReportByFormInstanceId(
+					_ddmFormInstance.getFormInstanceId());
+
+		JSONObject dataJSONObject = JSONFactoryUtil.createJSONObject(
+			ddmFormInstanceReport.getData());
+
+		JSONObject numberJSONObject = dataJSONObject.getJSONObject("number");
+
+		JSONObject summaryJSONObject = numberJSONObject.getJSONObject(
+			"summary");
+
+		Assert.assertEquals("4", summaryJSONObject.getString("max"));
+		Assert.assertEquals(1, summaryJSONObject.getInt("maxCount"));
+		Assert.assertEquals("2", summaryJSONObject.getString("min"));
+		Assert.assertEquals(1, summaryJSONObject.getInt("minCount"));
 	}
 
 	@Test
@@ -257,6 +304,36 @@ public class DeleteFormInstanceRecordMVCActionCommandTest {
 			WebKeys.THEME_DISPLAY, themeDisplay);
 
 		return mockLiferayPortletActionRequest;
+	}
+
+	private ServiceRegistration<ModelListener<DDMFormInstanceRecord>>
+		_registerModelListener(long... formInstanceRecordIds) {
+
+		Bundle bundle = FrameworkUtil.getBundle(
+			DeleteFormInstanceRecordMVCActionCommandTest.class);
+
+		BundleContext bundleContext = bundle.getBundleContext();
+
+		return bundleContext.registerService(
+			(Class<ModelListener<DDMFormInstanceRecord>>)
+				(Class<?>)ModelListener.class,
+			new BaseModelListener<DDMFormInstanceRecord>() {
+
+				@Override
+				public void onBeforeRemove(
+						DDMFormInstanceRecord ddmFormInstanceRecord)
+					throws ModelListenerException {
+
+					if (ArrayUtil.contains(
+							formInstanceRecordIds,
+							ddmFormInstanceRecord.getFormInstanceRecordId())) {
+
+						throw new ModelListenerException();
+					}
+				}
+
+			},
+			null);
 	}
 
 	private DDMFormInstance _ddmFormInstance;
