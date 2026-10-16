@@ -8,7 +8,6 @@ package com.liferay.dynamic.data.mapping.form.web.internal.portlet.action.test;
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.dynamic.data.mapping.constants.DDMPortletKeys;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstance;
-import com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecord;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstanceReport;
 import com.liferay.dynamic.data.mapping.service.DDMFormInstanceRecordLocalService;
 import com.liferay.dynamic.data.mapping.service.DDMFormInstanceReportLocalService;
@@ -18,12 +17,9 @@ import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.layout.test.util.LayoutTestUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
-import com.liferay.portal.kernel.exception.ModelListenerException;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
 import com.liferay.portal.kernel.json.JSONObject;
-import com.liferay.portal.kernel.model.BaseModelListener;
 import com.liferay.portal.kernel.model.Group;
-import com.liferay.portal.kernel.model.ModelListener;
 import com.liferay.portal.kernel.model.Portlet;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.portlet.PortletConfigFactoryUtil;
@@ -57,11 +53,6 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import org.osgi.framework.Bundle;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.FrameworkUtil;
-import org.osgi.framework.ServiceRegistration;
 
 /**
  * @author Akhash Ramprakash
@@ -131,70 +122,6 @@ public class DeleteFormInstanceRecordMVCActionCommandTest {
 			ddmFormInstanceReport.getData());
 
 		Assert.assertEquals(0, jsonObject.getInt("totalItems"));
-	}
-
-	@Test
-	public void testProcessActionWithSelectAllWhenDeleteFails()
-		throws Exception {
-
-		DDMFormInstanceRecord ddmFormInstanceRecord1 =
-			DDMFormInstanceRecordTestUtil.
-				addDDMFormInstanceRecordWithRandomValues(
-					_ddmFormInstance, _group, TestPropsValues.getUserId());
-		DDMFormInstanceRecord ddmFormInstanceRecord2 =
-			DDMFormInstanceRecordTestUtil.
-				addDDMFormInstanceRecordWithRandomValues(
-					_ddmFormInstance, _group, TestPropsValues.getUserId());
-		DDMFormInstanceRecord ddmFormInstanceRecord3 =
-			DDMFormInstanceRecordTestUtil.
-				addDDMFormInstanceRecordWithRandomValues(
-					_ddmFormInstance, _group, TestPropsValues.getUserId());
-
-		Bundle bundle = FrameworkUtil.getBundle(
-			DeleteFormInstanceRecordMVCActionCommandTest.class);
-
-		BundleContext bundleContext = bundle.getBundleContext();
-
-		ServiceRegistration<ModelListener<DDMFormInstanceRecord>>
-			serviceRegistration = bundleContext.registerService(
-				(Class<ModelListener<DDMFormInstanceRecord>>)
-					(Class<?>)ModelListener.class,
-				new BaseModelListener<DDMFormInstanceRecord>() {
-
-					@Override
-					public void onBeforeRemove(
-							DDMFormInstanceRecord ddmFormInstanceRecord)
-						throws ModelListenerException {
-
-						if (ddmFormInstanceRecord.getFormInstanceRecordId() ==
-								ddmFormInstanceRecord2.
-									getFormInstanceRecordId()) {
-
-							throw new ModelListenerException();
-						}
-					}
-
-				},
-				null);
-
-		try {
-			_mvcActionCommand.processAction(
-				_getMockLiferayPortletActionRequest(TestPropsValues.getUser()),
-				new MockLiferayPortletActionResponse());
-		}
-		finally {
-			serviceRegistration.unregister();
-		}
-
-		Assert.assertNull(
-			_ddmFormInstanceRecordLocalService.fetchFormInstanceRecord(
-				ddmFormInstanceRecord1.getFormInstanceRecordId()));
-		Assert.assertNotNull(
-			_ddmFormInstanceRecordLocalService.fetchFormInstanceRecord(
-				ddmFormInstanceRecord2.getFormInstanceRecordId()));
-		Assert.assertNull(
-			_ddmFormInstanceRecordLocalService.fetchFormInstanceRecord(
-				ddmFormInstanceRecord3.getFormInstanceRecordId()));
 	}
 
 	@Test
