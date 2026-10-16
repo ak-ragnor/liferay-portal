@@ -43,4 +43,10 @@ public interface AICreatorOpenAICompanyConfiguration {
 	@Meta.AD(deflt = "gpt-image-2", name = "image-model", required = false)
 	public String imageModel();
 
+	@Meta.AD(
+		deflt = "1024x1024,1536x1024,1024x1536", name = "image-sizes",
+		required = false
+	)
+	public String imageSizes();
+
 }
