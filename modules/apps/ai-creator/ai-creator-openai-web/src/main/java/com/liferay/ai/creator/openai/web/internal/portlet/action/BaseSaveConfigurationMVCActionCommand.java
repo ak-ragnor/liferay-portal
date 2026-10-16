@@ -5,6 +5,7 @@
 
 package com.liferay.ai.creator.openai.web.internal.portlet.action;
 
+import com.liferay.ai.creator.openai.configuration.manager.AICreatorOpenAIConfigurationManager;
 import com.liferay.ai.creator.openai.web.internal.client.AICreatorOpenAIClient;
 import com.liferay.ai.creator.openai.web.internal.exception.AICreatorOpenAIClientException;
 import com.liferay.portal.kernel.exception.PortalException;
@@ -50,10 +51,20 @@ public abstract class BaseSaveConfigurationMVCActionCommand
 		String successMessageKey = "your-request-completed-successfully";
 
 		String apiKey = ParamUtil.getString(actionRequest, "apiKey");
+		String imageModel = ParamUtil.getString(actionRequest, "imageModel");
 
 		if (Validator.isNotNull(apiKey)) {
+			String model = imageModel;
+
+			if (Validator.isNull(model)) {
+				model =
+					aiCreatorOpenAIConfigurationManager.
+						getAICreatorOpenAICompanyImageModel(
+							themeDisplay.getCompanyId());
+			}
+
 			try {
-				aiCreatorOpenAIClient.validateAPIKey(apiKey);
+				aiCreatorOpenAIClient.validateAPIKey(apiKey, model);
 
 				successMessageKey = "your-api-key-was-successfully-added";
 			}
@@ -76,7 +87,8 @@ public abstract class BaseSaveConfigurationMVCActionCommand
 
 		saveAICreatorOpenAIConfiguration(
 			apiKey, ParamUtil.getBoolean(actionRequest, "enableChatGPT"),
-			ParamUtil.getBoolean(actionRequest, "enableDALLE"), themeDisplay);
+			ParamUtil.getBoolean(actionRequest, "enableDALLE"), imageModel,
+			themeDisplay);
 
 		SessionMessages.add(
 			actionRequest, "requestProcessed",
@@ -89,7 +101,7 @@ public abstract class BaseSaveConfigurationMVCActionCommand
 
 	protected abstract void saveAICreatorOpenAIConfiguration(
 			String apiKey, boolean enableChatGPT, boolean enableDALLE,
-			ThemeDisplay themeDisplay)
+			String imageModel, ThemeDisplay themeDisplay)
 		throws ConfigurationException;
 
 	@Reference(
@@ -97,6 +109,10 @@ public abstract class BaseSaveConfigurationMVCActionCommand
 		policyOption = ReferencePolicyOption.GREEDY
 	)
 	protected volatile AICreatorOpenAIClient aiCreatorOpenAIClient;
+
+	@Reference
+	protected AICreatorOpenAIConfigurationManager
+		aiCreatorOpenAIConfigurationManager;
 
 	@Reference
 	protected Language language;
@@ -116,8 +132,11 @@ public abstract class BaseSaveConfigurationMVCActionCommand
 
 		String namespace = portal.getPortletNamespace(themeDisplay.getPpid());
 
-		redirect = HttpComponentsUtil.removeParameter(
-			redirect, namespace + "apiKey");
+		for (String name : _PARAMETER_NAMES) {
+			redirect = HttpComponentsUtil.removeParameter(
+				redirect, namespace + name);
+		}
+
 		redirect = HttpComponentsUtil.removeParameter(
 			redirect, namespace + "enableOpenAI");
 
@@ -125,16 +144,22 @@ public abstract class BaseSaveConfigurationMVCActionCommand
 			return redirect;
 		}
 
-		String apiKey = ParamUtil.getString(actionRequest, "apiKey", null);
+		for (String name : _PARAMETER_NAMES) {
+			String value = ParamUtil.getString(actionRequest, name, null);
 
-		if (apiKey != null) {
+			if (value == null) {
+				continue;
+			}
+
 			redirect = HttpComponentsUtil.addParameter(
-				redirect, namespace + "apiKey", apiKey);
+				redirect, namespace + name, value);
 		}
 
 		return HttpComponentsUtil.addParameter(
 			redirect, namespace + "enableOpenAI",
 			ParamUtil.getBoolean(actionRequest, "enableOpenAI"));
 	}
+
+	private static final String[] _PARAMETER_NAMES = {"apiKey", "imageModel"};
 
 }

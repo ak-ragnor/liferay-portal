@@ -40,4 +40,7 @@ public interface AICreatorOpenAIGroupConfiguration {
 	)
 	public boolean enableDALLEToCreateImages();
 
+	@Meta.AD(deflt = "", name = "image-model", required = false)
+	public String imageModel();
+
 }
