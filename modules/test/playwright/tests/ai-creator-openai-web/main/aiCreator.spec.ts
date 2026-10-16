@@ -24,7 +24,7 @@ const test = mergeTests(
 
 test(
 	'Access the OpenAI configuration page from the Instance Settings and the Site Settings',
-	{tag: '@LPS-179484'},
+	{tag: ['@LPD-109984', '@LPS-179484']},
 	async ({aiCreatorInstanceSettingsPage, page, site, siteSettingsPage}) => {
 
 		// The OpenAI settings are reachable from the Instance Settings
@@ -32,9 +32,18 @@ test(
 		await aiCreatorInstanceSettingsPage.goto();
 
 		await expect(
+			aiCreatorInstanceSettingsPage.openAIImageGenerationCheckbox
+		).toBeChecked();
+		await expect(
 			page.getByLabel('Enable ChatGPT to Create Content')
 		).toBeChecked();
 		await expect(aiCreatorInstanceSettingsPage.apiKeyInput).toHaveValue('');
+		await expect(aiCreatorInstanceSettingsPage.imageModelInput).toHaveValue(
+			'gpt-image-2'
+		);
+		await expect(aiCreatorInstanceSettingsPage.imageSizesInput).toHaveValue(
+			'1024x1024,1536x1024,1024x1536'
+		);
 
 		// The OpenAI settings are reachable from the Site Settings
 
@@ -45,9 +54,18 @@ test(
 		);
 
 		await expect(
+			aiCreatorInstanceSettingsPage.openAIImageGenerationCheckbox
+		).toBeChecked();
+		await expect(
 			page.getByLabel('Enable ChatGPT to Create Content')
 		).toBeChecked();
 		await expect(aiCreatorInstanceSettingsPage.apiKeyInput).toHaveValue('');
+		await expect(aiCreatorInstanceSettingsPage.imageModelInput).toHaveValue(
+			''
+		);
+		await expect(aiCreatorInstanceSettingsPage.imageSizesInput).toHaveValue(
+			''
+		);
 
 		// The How do I get an API key link points to the OpenAI docs
 
