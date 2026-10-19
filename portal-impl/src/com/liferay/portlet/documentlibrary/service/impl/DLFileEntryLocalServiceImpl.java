@@ -458,10 +458,7 @@ public class DLFileEntryLocalServiceImpl
 				dlVersionNumberIncrease, lastDLFileVersion, latestDLFileVersion,
 				serviceContext.getWorkflowAction());
 
-		if ((computedDLVersionNumberIncrease == DLVersionNumberIncrease.NONE) ||
-			(lastDLFileVersion.getStatus() ==
-				WorkflowConstants.STATUS_PENDING)) {
-
+		if (computedDLVersionNumberIncrease == DLVersionNumberIncrease.NONE) {
 			_overwritePreviousFileVersion(
 				user, dlFileEntry, computedDLVersionNumberIncrease,
 				latestDLFileVersion, lastDLFileVersion, serviceContext);
