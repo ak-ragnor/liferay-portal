@@ -7,6 +7,7 @@ package com.liferay.document.library.app.service.test;
 
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.asset.kernel.model.AssetEntry;
+import com.liferay.asset.kernel.model.AssetRenderer;
 import com.liferay.asset.kernel.service.AssetEntryLocalServiceUtil;
 import com.liferay.document.library.app.service.test.util.DLAppServiceTestUtil;
 import com.liferay.document.library.kernel.model.DLFileEntry;
@@ -30,8 +31,11 @@ import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.util.ContentTypes;
+import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
+import com.liferay.portal.kernel.workflow.WorkflowHandler;
+import com.liferay.portal.kernel.workflow.WorkflowHandlerRegistryUtil;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 
 import java.util.Map;
@@ -192,12 +196,16 @@ public class DLAppServiceWhenCheckingInAFileEntryTest
 			group.getGroupId(), fileEntry.getFileEntryId(),
 			RandomTestUtil.randomString(), null, null, null, true);
 
-		FileVersion fileVersion = fileEntry.getLatestFileVersion(true);
+		FileVersion pendingFileVersion = fileEntry.getLatestFileVersion(true);
 
-		Assert.assertEquals("2.0", fileVersion.getVersion());
+		Assert.assertEquals("2.0", pendingFileVersion.getVersion());
 
 		dlAppService.checkOutFileEntry(
 			fileEntry.getFileEntryId(), serviceContext);
+
+		DLAppServiceTestUtil.updateFileEntry(
+			group.getGroupId(), fileEntry.getFileEntryId(),
+			RandomTestUtil.randomString(), null, null, null, true);
 
 		dlAppService.checkInFileEntry(
 			fileEntry.getFileEntryId(), DLVersionNumberIncrease.MINOR,
@@ -205,18 +213,40 @@ public class DLAppServiceWhenCheckingInAFileEntryTest
 
 		fileEntry = dlAppService.getFileEntry(fileEntry.getFileEntryId());
 
-		fileVersion = fileEntry.getLatestFileVersion(true);
+		FileVersion fileVersion = fileEntry.getLatestFileVersion(true);
 
 		Assert.assertEquals("2.1", fileVersion.getVersion());
 		Assert.assertEquals(
 			WorkflowConstants.STATUS_PENDING, fileVersion.getStatus());
 
+		pendingFileVersion = dlAppService.getFileVersion(
+			pendingFileVersion.getFileVersionId());
+
+		Assert.assertEquals("2.0", pendingFileVersion.getVersion());
 		Assert.assertEquals(
-			2, fileEntry.getFileVersionsCount(WorkflowConstants.STATUS_ANY));
+			WorkflowConstants.STATUS_PENDING, pendingFileVersion.getStatus());
+
 		Assert.assertEquals(
-			workflowInstanceLinksCount + 1,
+			3, fileEntry.getFileVersionsCount(WorkflowConstants.STATUS_ANY));
+		Assert.assertEquals(
+			workflowInstanceLinksCount + 2,
 			WorkflowInstanceLinkLocalServiceUtil.
 				getWorkflowInstanceLinksCount());
+
+		WorkflowHandler<?> workflowHandler =
+			WorkflowHandlerRegistryUtil.getWorkflowHandler(
+				DLFileEntryConstants.getClassName());
+
+		for (FileVersion curFileVersion :
+				new FileVersion[] {pendingFileVersion, fileVersion}) {
+
+			AssetRenderer<?> assetRenderer = workflowHandler.getAssetRenderer(
+				curFileVersion.getFileVersionId());
+
+			Assert.assertEquals(
+				curFileVersion.getTitle(),
+				assetRenderer.getTitle(LocaleUtil.getDefault()));
+		}
 	}
 
 	@Test
