@@ -6,6 +6,8 @@
 package com.liferay.document.library.web.internal.display.context;
 
 import com.liferay.document.library.kernel.model.DLFileEntryType;
+import com.liferay.document.library.kernel.util.DL;
+import com.liferay.document.library.kernel.util.DLUtil;
 import com.liferay.document.library.kernel.util.DLValidator;
 import com.liferay.document.library.web.internal.display.context.helper.FileEntryDisplayContextHelper;
 import com.liferay.dynamic.data.mapping.form.values.factory.DDMFormValuesFactory;
@@ -42,6 +44,55 @@ public class DefaultDLEditFileEntryDisplayContextTest {
 		BeanPropertiesUtil beanPropertiesUtil = new BeanPropertiesUtil();
 
 		beanPropertiesUtil.setBeanProperties(new BeanPropertiesImpl());
+	}
+
+	@Test
+	public void testGetPublishButtonLabelWhenFileEntryIsCheckedOut()
+		throws Exception {
+
+		DL dl = Mockito.mock(DL.class);
+
+		Mockito.when(
+			dl.hasWorkflowDefinitionLink(
+				Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong(),
+				Mockito.anyLong())
+		).thenReturn(
+			true
+		);
+
+		DL originalDL = ReflectionTestUtil.getAndSetFieldValue(
+			DLUtil.class, "_dl", dl);
+
+		try {
+			DefaultDLEditFileEntryDisplayContext
+				defaultDLEditFileEntryDisplayContext =
+					_getDefaultDLEditFileEntryDisplayContext();
+
+			FileEntryDisplayContextHelper fileEntryDisplayContextHelper =
+				Mockito.mock(FileEntryDisplayContextHelper.class);
+
+			ReflectionTestUtil.setFieldValue(
+				defaultDLEditFileEntryDisplayContext,
+				"_fileEntryDisplayContextHelper",
+				fileEntryDisplayContextHelper);
+
+			Assert.assertEquals(
+				"submit-for-workflow",
+				defaultDLEditFileEntryDisplayContext.getPublishButtonLabel());
+
+			Mockito.when(
+				fileEntryDisplayContextHelper.isCheckedOut()
+			).thenReturn(
+				true
+			);
+
+			Assert.assertEquals(
+				"save",
+				defaultDLEditFileEntryDisplayContext.getPublishButtonLabel());
+		}
+		finally {
+			ReflectionTestUtil.setFieldValue(DLUtil.class, "_dl", originalDL);
+		}
 	}
 
 	@Test
