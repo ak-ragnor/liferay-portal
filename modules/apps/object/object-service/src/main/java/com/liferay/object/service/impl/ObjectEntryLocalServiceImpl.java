@@ -6411,6 +6411,12 @@ public class ObjectEntryLocalServiceImpl
 			partialUpdate, values);
 
 		if (locales.isEmpty()) {
+			for (ObjectField objectField : objectFields) {
+				_putLocalizedValues(
+					objectField.getDBColumnName(), defaultLanguageId,
+					new HashMap<>(), insertedValues);
+			}
+
 			return;
 		}
 
@@ -6880,7 +6886,9 @@ public class ObjectEntryLocalServiceImpl
 				_putLocalizedObjectFieldValues(
 					objectEntry.getDefaultLanguageId(),
 					dynamicObjectDefinitionLocalizationTable,
-					localizedRowsMap.get(objectEntry.getObjectEntryId()),
+					localizedRowsMap.getOrDefault(
+						objectEntry.getObjectEntryId(),
+						Collections.emptyList()),
 					values);
 			}
 
@@ -7031,10 +7039,6 @@ public class ObjectEntryLocalServiceImpl
 		DynamicObjectDefinitionLocalizationTable
 			dynamicObjectDefinitionLocalizationTable,
 		List<Object[]> rows, Map<String, Serializable> values) {
-
-		if (ListUtil.isEmpty(rows)) {
-			return;
-		}
 
 		List<Column<DynamicObjectDefinitionLocalizationTable, ?>>
 			objectFieldColumns =
