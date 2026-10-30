@@ -9,7 +9,9 @@ import com.liferay.layout.page.template.model.LayoutPageTemplateStructureRelElem
 import com.liferay.layout.page.template.service.base.LayoutPageTemplateStructureRelElementVariationAudienceEntryRelLocalServiceBaseImpl;
 import com.liferay.portal.aop.AopService;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.UserLocalService;
 
@@ -49,8 +51,11 @@ public class
 
 		User user = _userLocalService.getUser(userId);
 
+		Group group = _groupLocalService.getGroup(groupId);
+
 		layoutPageTemplateStructureRelElementVariationAudienceEntryRel.
-			setCompanyId(user.getCompanyId());
+			setCompanyId(group.getCompanyId());
+
 		layoutPageTemplateStructureRelElementVariationAudienceEntryRel.
 			setUserId(user.getUserId());
 		layoutPageTemplateStructureRelElementVariationAudienceEntryRel.
@@ -133,6 +138,9 @@ public class
 		return layoutPageTemplateStructureRelElementVariationAudienceEntryRelPersistence.
 			countByC_AEERC(companyId, audienceEntryERC);
 	}
+
+	@Reference
+	private GroupLocalService _groupLocalService;
 
 	@Reference
 	private UserLocalService _userLocalService;

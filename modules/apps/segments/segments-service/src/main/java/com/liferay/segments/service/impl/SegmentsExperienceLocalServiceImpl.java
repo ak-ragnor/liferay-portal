@@ -15,6 +15,7 @@ import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.model.CompanyConstants;
+import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.LayoutConstants;
 import com.liferay.portal.kernel.model.ResourceConstants;
@@ -22,6 +23,7 @@ import com.liferay.portal.kernel.model.SystemEventConstants;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.module.service.Snapshot;
 import com.liferay.portal.kernel.security.auth.GuestOrUserUtil;
+import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.LayoutLocalService;
 import com.liferay.portal.kernel.service.ResourceLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
@@ -163,7 +165,11 @@ public class SegmentsExperienceLocalServiceImpl
 		segmentsExperience.setUuid(serviceContext.getUuid());
 		segmentsExperience.setExternalReferenceCode(externalReferenceCode);
 		segmentsExperience.setGroupId(groupId);
-		segmentsExperience.setCompanyId(user.getCompanyId());
+
+		Group group = _groupLocalService.getGroup(groupId);
+
+		segmentsExperience.setCompanyId(group.getCompanyId());
+
 		segmentsExperience.setUserId(user.getUserId());
 		segmentsExperience.setUserName(user.getFullName());
 		segmentsExperience.setCreateDate(
@@ -932,6 +938,9 @@ public class SegmentsExperienceLocalServiceImpl
 		_segmentsEntryLocalServiceSnapshot = new Snapshot<>(
 			SegmentsExperienceLocalServiceImpl.class,
 			SegmentsEntryLocalService.class);
+
+	@Reference
+	private GroupLocalService _groupLocalService;
 
 	@Reference
 	private Language _language;

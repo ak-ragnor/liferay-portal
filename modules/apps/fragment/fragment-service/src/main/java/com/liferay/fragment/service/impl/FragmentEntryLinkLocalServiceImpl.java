@@ -116,7 +116,11 @@ public class FragmentEntryLinkLocalServiceImpl
 		fragmentEntryLink.setUuid(serviceContext.getUuid());
 		fragmentEntryLink.setExternalReferenceCode(externalReferenceCode);
 		fragmentEntryLink.setGroupId(groupId);
-		fragmentEntryLink.setCompanyId(user.getCompanyId());
+
+		Group group = _groupLocalService.getGroup(groupId);
+
+		fragmentEntryLink.setCompanyId(group.getCompanyId());
+
 		fragmentEntryLink.setUserId(user.getUserId());
 		fragmentEntryLink.setUserName(user.getFullName());
 		fragmentEntryLink.setCreateDate(

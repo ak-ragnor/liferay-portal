@@ -17,9 +17,11 @@ import com.liferay.layout.util.UpdateLayoutStatusThreadLocal;
 import com.liferay.portal.aop.AopService;
 import com.liferay.portal.kernel.exception.LockedLayoutException;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.SystemEventConstants;
 import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.LayoutLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.ServiceContextThreadLocal;
@@ -64,7 +66,11 @@ public class LayoutPageTemplateStructureLocalServiceImpl
 
 		layoutPageTemplateStructure.setUuid(serviceContext.getUuid());
 		layoutPageTemplateStructure.setGroupId(groupId);
-		layoutPageTemplateStructure.setCompanyId(user.getCompanyId());
+
+		Group group = _groupLocalService.getGroup(groupId);
+
+		layoutPageTemplateStructure.setCompanyId(group.getCompanyId());
+
 		layoutPageTemplateStructure.setUserId(user.getUserId());
 		layoutPageTemplateStructure.setUserName(user.getFullName());
 		layoutPageTemplateStructure.setCreateDate(
@@ -245,6 +251,9 @@ public class LayoutPageTemplateStructureLocalServiceImpl
 
 	@Reference
 	private FragmentEntryLinkLocalService _fragmentEntryLinkLocalService;
+
+	@Reference
+	private GroupLocalService _groupLocalService;
 
 	@Reference
 	private LayoutLocalService _layoutLocalService;

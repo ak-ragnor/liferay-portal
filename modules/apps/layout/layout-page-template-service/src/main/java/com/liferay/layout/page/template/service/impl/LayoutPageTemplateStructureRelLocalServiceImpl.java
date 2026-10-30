@@ -9,8 +9,10 @@ import com.liferay.layout.page.template.model.LayoutPageTemplateStructureRel;
 import com.liferay.layout.page.template.service.base.LayoutPageTemplateStructureRelLocalServiceBaseImpl;
 import com.liferay.portal.aop.AopService;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.SystemEventConstants;
 import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.UserLocalService;
 import com.liferay.portal.kernel.systemevent.SystemEvent;
@@ -49,7 +51,11 @@ public class LayoutPageTemplateStructureRelLocalServiceImpl
 
 		layoutPageTemplateStructureRel.setUuid(serviceContext.getUuid());
 		layoutPageTemplateStructureRel.setGroupId(groupId);
-		layoutPageTemplateStructureRel.setCompanyId(user.getCompanyId());
+
+		Group group = _groupLocalService.getGroup(groupId);
+
+		layoutPageTemplateStructureRel.setCompanyId(group.getCompanyId());
+
 		layoutPageTemplateStructureRel.setUserId(user.getUserId());
 		layoutPageTemplateStructureRel.setUserName(user.getFullName());
 		layoutPageTemplateStructureRel.setCreateDate(
@@ -170,6 +176,9 @@ public class LayoutPageTemplateStructureRelLocalServiceImpl
 		return layoutPageTemplateStructureRelPersistence.update(
 			layoutPageTemplateStructureRel);
 	}
+
+	@Reference
+	private GroupLocalService _groupLocalService;
 
 	@Reference
 	private UserLocalService _userLocalService;
