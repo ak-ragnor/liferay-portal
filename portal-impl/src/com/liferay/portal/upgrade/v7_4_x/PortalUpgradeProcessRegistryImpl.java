@@ -867,6 +867,9 @@ public class PortalUpgradeProcessRegistryImpl
 			new Version(39, 3, 0),
 			UpgradeProcessFactory.addColumns(
 				"Layout", "masterLPTESERC VARCHAR(75) null"));
+
+		upgradeVersionTreeMap.put(
+			new Version(39, 3, 1), new LayoutCompanyIdUpgradeProcess());
 	}
 
 }
