@@ -411,4 +411,4 @@ public interface LayoutPageTemplateStructureRelElementVariationLocalService
 		throws E;
 
 }
-// LIFERAY-SERVICE-BUILDER-HASH:190826426
+// LIFERAY-SERVICE-BUILDER-HASH:-1231732820
