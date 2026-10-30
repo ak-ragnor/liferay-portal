@@ -37,23 +37,35 @@ import com.liferay.portal.kernel.lazy.referencing.LazyReferencingThreadLocal;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.ColorScheme;
+import com.liferay.portal.kernel.model.Company;
 import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.model.GroupConstants;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.LayoutConstants;
+import com.liferay.portal.kernel.model.LayoutFriendlyURL;
 import com.liferay.portal.kernel.model.LayoutPrototype;
 import com.liferay.portal.kernel.model.LayoutTypePortlet;
+import com.liferay.portal.kernel.model.ResourceConstants;
+import com.liferay.portal.kernel.model.Role;
+import com.liferay.portal.kernel.model.RoleConstants;
 import com.liferay.portal.kernel.model.SystemEventConstants;
 import com.liferay.portal.kernel.model.Theme;
 import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.service.ClassNameLocalServiceUtil;
+import com.liferay.portal.kernel.service.GroupLocalService;
+import com.liferay.portal.kernel.service.LayoutFriendlyURLLocalService;
 import com.liferay.portal.kernel.service.LayoutLocalService;
 import com.liferay.portal.kernel.service.LayoutLocalServiceUtil;
+import com.liferay.portal.kernel.service.ResourcePermissionLocalService;
+import com.liferay.portal.kernel.service.RoleLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.ServiceContextThreadLocal;
 import com.liferay.portal.kernel.service.SystemEventLocalService;
 import com.liferay.portal.kernel.test.TestInfo;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
 import com.liferay.portal.kernel.test.rule.DeleteAfterTestRun;
+import com.liferay.portal.kernel.test.util.CompanyTestUtil;
 import com.liferay.portal.kernel.test.util.GroupTestUtil;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
@@ -73,6 +85,7 @@ import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
+import com.liferay.segments.constants.SegmentsExperienceConstants;
 import com.liferay.segments.model.SegmentsExperience;
 import com.liferay.segments.service.SegmentsExperienceLocalService;
 import com.liferay.sites.kernel.util.Sites;
@@ -209,6 +222,41 @@ public class LayoutLocalServiceTest {
 	}
 
 	@Test
+	public void testAddContentLayoutWithUserOfAnotherCompany()
+		throws Exception {
+
+		_company = CompanyTestUtil.addCompany();
+
+		Layout layout = _addLayout(false, LayoutConstants.TYPE_CONTENT);
+
+		Layout draftLayout = layout.fetchDraftLayout();
+
+		LayoutPageTemplateStructure layoutPageTemplateStructure =
+			_layoutPageTemplateStructureLocalService.
+				fetchLayoutPageTemplateStructure(
+					layout.getGroupId(), layout.getPlid());
+
+		SegmentsExperience segmentsExperience =
+			_segmentsExperienceLocalService.fetchSegmentsExperience(
+				layout.getGroupId(), SegmentsExperienceConstants.KEY_DEFAULT,
+				layout.getPlid());
+
+		Assert.assertEquals(
+			_company.getCompanyId(), draftLayout.getCompanyId());
+		Assert.assertEquals(_company.getCompanyId(), layout.getCompanyId());
+		Assert.assertEquals(
+			_company.getCompanyId(),
+			layoutPageTemplateStructure.getCompanyId());
+		Assert.assertEquals(
+			_company.getCompanyId(), segmentsExperience.getCompanyId());
+		Assert.assertTrue(
+			_hasViewResourcePermission(
+				SegmentsExperience.class.getName(),
+				segmentsExperience.getSegmentsExperienceId(),
+				RoleConstants.OWNER));
+	}
+
+	@Test
 	public void testAddContentLayoutWithoutExternalReferenceCode()
 		throws Exception {
 
@@ -293,6 +341,41 @@ public class LayoutLocalServiceTest {
 			_group.getGroupId(), true, LayoutConstants.DEFAULT_PARENT_LAYOUT_ID,
 			RandomTestUtil.randomString(), null, RandomTestUtil.randomString(),
 			LayoutConstants.TYPE_CONTENT, false, false, null, _serviceContext);
+	}
+
+	@Test
+	public void testAddLayoutWithUserOfAnotherCompany() throws Exception {
+		_company = CompanyTestUtil.addCompany();
+
+		Layout layout = _addLayout(false, LayoutConstants.TYPE_PORTLET);
+
+		Assert.assertEquals(_company.getCompanyId(), layout.getCompanyId());
+		Assert.assertTrue(
+			_hasViewResourcePermission(
+				Layout.class.getName(), layout.getPlid(), RoleConstants.GUEST));
+		Assert.assertTrue(
+			_hasViewResourcePermission(
+				Layout.class.getName(), layout.getPlid(), RoleConstants.OWNER));
+
+		_assertLayoutFriendlyURLs(layout);
+	}
+
+	@Test
+	public void testAddPrivateLayoutWithUserOfAnotherCompany()
+		throws Exception {
+
+		_company = CompanyTestUtil.addCompany();
+
+		Layout layout = _addLayout(true, LayoutConstants.TYPE_PORTLET);
+
+		Assert.assertEquals(_company.getCompanyId(), layout.getCompanyId());
+		Assert.assertFalse(
+			_hasViewResourcePermission(
+				Layout.class.getName(), layout.getPlid(), RoleConstants.GUEST));
+		Assert.assertTrue(
+			_hasViewResourcePermission(
+				Layout.class.getName(), layout.getPlid(),
+				RoleConstants.SITE_MEMBER));
 	}
 
 	@Test
@@ -1313,6 +1396,21 @@ public class LayoutLocalServiceTest {
 		return _layoutLocalService.updateLayout(launchDraftLayout);
 	}
 
+	private Layout _addLayout(boolean privateLayout, String type)
+		throws Exception {
+
+		Group group = _groupLocalService.getGroup(
+			_company.getCompanyId(), GroupConstants.GUEST);
+
+		return _layoutLocalService.addLayout(
+			null, TestPropsValues.getUserId(), group.getGroupId(),
+			privateLayout, LayoutConstants.DEFAULT_PARENT_LAYOUT_ID,
+			RandomTestUtil.randomString(), null, null, type, false,
+			StringPool.SLASH + RandomTestUtil.randomString(),
+			ServiceContextTestUtil.getServiceContext(
+				group, TestPropsValues.getUserId()));
+	}
+
 	private void _assertExternalReferenceCodes(
 			Layout draftLayout,
 			UnsafeBiFunction<String, String, Boolean, Exception>
@@ -1365,6 +1463,19 @@ public class LayoutLocalServiceTest {
 			fragmentEntryLinks.toString(), fragmentEntryLinks.isEmpty());
 	}
 
+	private void _assertLayoutFriendlyURLs(Layout layout) {
+		List<LayoutFriendlyURL> layoutFriendlyURLs =
+			_layoutFriendlyURLLocalService.getLayoutFriendlyURLs(
+				layout.getPlid());
+
+		Assert.assertFalse(layoutFriendlyURLs.isEmpty());
+
+		for (LayoutFriendlyURL layoutFriendlyURL : layoutFriendlyURLs) {
+			Assert.assertEquals(
+				_company.getCompanyId(), layoutFriendlyURL.getCompanyId());
+		}
+	}
+
 	private void _assertSearch(
 			String keyword, String name, boolean searchOnlyByName, int count)
 		throws Exception {
@@ -1393,6 +1504,18 @@ public class LayoutLocalServiceTest {
 			group, TestPropsValues.getUserId());
 	}
 
+	private boolean _hasViewResourcePermission(
+			String name, long primKey, String roleName)
+		throws Exception {
+
+		Role role = _roleLocalService.getRole(
+			_company.getCompanyId(), roleName);
+
+		return _resourcePermissionLocalService.hasResourcePermission(
+			_company.getCompanyId(), name, ResourceConstants.SCOPE_INDIVIDUAL,
+			String.valueOf(primKey), role.getRoleId(), ActionKeys.VIEW);
+	}
+
 	private void _testDeleteLayouts(boolean system) throws Exception {
 		LayoutTestUtil.addTypeContentLayout(_group, false, system);
 		LayoutTestUtil.addTypeContentLayout(_group, true, system);
@@ -1418,6 +1541,9 @@ public class LayoutLocalServiceTest {
 	private static final Log _log = LogFactoryUtil.getLog(
 		LayoutLocalServiceTest.class);
 
+	@DeleteAfterTestRun
+	private Company _company;
+
 	@Inject
 	private CounterLocalService _counterLocalService;
 
@@ -1437,6 +1563,12 @@ public class LayoutLocalServiceTest {
 	private Group _group;
 
 	@Inject
+	private GroupLocalService _groupLocalService;
+
+	@Inject
+	private LayoutFriendlyURLLocalService _layoutFriendlyURLLocalService;
+
+	@Inject
 	private LayoutLocalService _layoutLocalService;
 
 	@Inject
@@ -1449,6 +1581,12 @@ public class LayoutLocalServiceTest {
 
 	@Inject
 	private Portal _portal;
+
+	@Inject
+	private ResourcePermissionLocalService _resourcePermissionLocalService;
+
+	@Inject
+	private RoleLocalService _roleLocalService;
 
 	@Inject
 	private SegmentsExperienceLocalService _segmentsExperienceLocalService;
