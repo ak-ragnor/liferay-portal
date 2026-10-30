@@ -305,9 +305,11 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 			layout.setUuid(uuid);
 		}
 
+		Group group = _groupLocalService.getGroup(groupId);
+
 		layout.setExternalReferenceCode(externalReferenceCode);
 		layout.setGroupId(groupId);
-		layout.setCompanyId(user.getCompanyId());
+		layout.setCompanyId(group.getCompanyId());
 		layout.setUserId(user.getUserId());
 		layout.setUserName(user.getFullName());
 		layout.setCreateDate(serviceContext.getCreateDate(date));
@@ -417,7 +419,7 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 		// Layout friendly URLs
 
 		_layoutFriendlyURLLocalService.updateLayoutFriendlyURLs(
-			user.getUserId(), user.getCompanyId(), groupId, layout.getPlid(),
+			user.getUserId(), layout.getCompanyId(), groupId, layout.getPlid(),
 			privateLayout, friendlyURLMap, serviceContext);
 
 		// Layout prototype
@@ -435,8 +437,6 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 
 		boolean addGroupPermissions = true;
 
-		Group group = _groupLocalService.getGroup(groupId);
-
 		if (privateLayout && (group.isUser() || group.isUserGroup())) {
 			addGroupPermissions = false;
 		}
@@ -450,7 +450,7 @@ public class LayoutLocalServiceImpl extends LayoutLocalServiceBaseImpl {
 		}
 
 		_resourceLocalService.addResources(
-			user.getCompanyId(), groupId, user.getUserId(),
+			layout.getCompanyId(), groupId, user.getUserId(),
 			Layout.class.getName(), layout.getPlid(), false,
 			addGroupPermissions, addGuestPermissions);
 
