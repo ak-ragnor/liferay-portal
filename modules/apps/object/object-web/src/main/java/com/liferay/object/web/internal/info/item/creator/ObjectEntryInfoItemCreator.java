@@ -183,10 +183,12 @@ public class ObjectEntryInfoItemCreator
 			ServiceContext serviceContext, long userId)
 		throws Exception {
 
+		Map<ObjectRelationship, long[]> manyToManyRelatedPrimaryKeysMap =
+			ObjectEntryUtil.getManyToManyRelatedPrimaryKeysMap(
+				infoItemFieldValues, objectDefinition);
+
 		for (Map.Entry<ObjectRelationship, long[]> entry :
-				ObjectEntryUtil.getManyToManyRelatedPrimaryKeysMap(
-					infoItemFieldValues, objectDefinition
-				).entrySet()) {
+				manyToManyRelatedPrimaryKeysMap.entrySet()) {
 
 			ObjectRelationship objectRelationship = entry.getKey();
 

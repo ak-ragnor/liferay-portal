@@ -419,10 +419,12 @@ public class ObjectEntryInfoItemFieldValuesUpdater
 					objectDefinition.getCompanyId(),
 					objectDefinition.getStorageType()));
 
+		Map<ObjectRelationship, long[]> manyToManyRelatedPrimaryKeysMap =
+			ObjectEntryUtil.getManyToManyRelatedPrimaryKeysMap(
+				infoItemFieldValues, objectDefinition);
+
 		for (Map.Entry<ObjectRelationship, long[]> entry :
-				ObjectEntryUtil.getManyToManyRelatedPrimaryKeysMap(
-					infoItemFieldValues, objectDefinition
-				).entrySet()) {
+				manyToManyRelatedPrimaryKeysMap.entrySet()) {
 
 			ObjectRelationship objectRelationship = entry.getKey();
 
