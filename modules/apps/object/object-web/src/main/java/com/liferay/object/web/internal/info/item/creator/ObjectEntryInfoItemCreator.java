@@ -13,12 +13,14 @@ import com.liferay.info.item.provider.InfoItemFormProvider;
 import com.liferay.object.info.item.util.ObjectEntryInfoItemUtil;
 import com.liferay.object.model.ObjectDefinition;
 import com.liferay.object.model.ObjectEntry;
+import com.liferay.object.model.ObjectRelationship;
 import com.liferay.object.rest.dto.v1_0.Status;
 import com.liferay.object.rest.manager.v1_0.ObjectEntryManager;
 import com.liferay.object.rest.manager.v1_0.ObjectEntryManagerRegistry;
 import com.liferay.object.scope.ObjectScopeProviderRegistry;
 import com.liferay.object.service.ObjectDefinitionLocalService;
 import com.liferay.object.service.ObjectEntryLocalService;
+import com.liferay.object.service.ObjectRelationshipLocalServiceUtil;
 import com.liferay.object.web.internal.info.item.handler.ObjectEntryInfoItemExceptionRequestHandler;
 import com.liferay.object.web.internal.util.ObjectEntryUtil;
 import com.liferay.portal.kernel.exception.InfoFormException;
@@ -141,6 +143,13 @@ public class ObjectEntryInfoItemCreator
 			serviceBuilderObjectEntry.setObjectDefinitionId(
 				objectDefinition.getObjectDefinitionId());
 
+			if (objectDefinition.isDefaultStorageType()) {
+				_relateManyToManyObjectEntries(
+					infoItemFieldValues, objectDefinition,
+					serviceBuilderObjectEntry.getObjectEntryId(),
+					serviceContext, themeDisplay.getUserId());
+			}
+
 			return serviceBuilderObjectEntry;
 		}
 		catch (Exception exception) {
@@ -166,6 +175,28 @@ public class ObjectEntryInfoItemCreator
 
 		return ObjectEntryUtil.toProperties(
 			themeDisplay.getCompanyId(), infoItemFieldValues, null);
+	}
+
+	private void _relateManyToManyObjectEntries(
+			InfoItemFieldValues infoItemFieldValues,
+			ObjectDefinition objectDefinition, long objectEntryId,
+			ServiceContext serviceContext, long userId)
+		throws Exception {
+
+		for (Map.Entry<ObjectRelationship, long[]> entry :
+				ObjectEntryUtil.getManyToManyRelatedPrimaryKeysMap(
+					infoItemFieldValues, objectDefinition
+				).entrySet()) {
+
+			ObjectRelationship objectRelationship = entry.getKey();
+
+			for (long relatedPrimaryKey : entry.getValue()) {
+				ObjectRelationshipLocalServiceUtil.
+					addObjectRelationshipMappingTableValues(
+						userId, objectRelationship.getObjectRelationshipId(),
+						objectEntryId, relatedPrimaryKey, serviceContext);
+			}
+		}
 	}
 
 	private final InfoItemFormProvider<ObjectEntry> _infoItemFormProvider;

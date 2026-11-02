@@ -18,6 +18,7 @@ import com.liferay.info.localized.InfoLocalizedValue;
 import com.liferay.list.type.model.ListTypeEntry;
 import com.liferay.list.type.service.ListTypeEntryLocalServiceUtil;
 import com.liferay.object.constants.ObjectFieldConstants;
+import com.liferay.object.constants.ObjectRelationshipConstants;
 import com.liferay.object.field.util.ObjectFieldUtil;
 import com.liferay.object.model.ObjectDefinition;
 import com.liferay.object.model.ObjectEntry;
@@ -31,6 +32,7 @@ import com.liferay.object.service.ObjectDefinitionLocalServiceUtil;
 import com.liferay.object.service.ObjectEntryLocalServiceUtil;
 import com.liferay.object.service.ObjectRelationshipLocalServiceUtil;
 import com.liferay.object.web.internal.model.ProxyObjectEntry;
+import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.util.DateUtil;
 import com.liferay.portal.kernel.util.FastDateFormatFactoryUtil;
@@ -50,6 +52,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -60,6 +63,54 @@ import java.util.TreeMap;
  * @author Eudaldo Alonso
  */
 public class ObjectEntryUtil {
+
+	public static Map<ObjectRelationship, long[]>
+		getManyToManyRelatedPrimaryKeysMap(
+			InfoItemFieldValues infoItemFieldValues,
+			ObjectDefinition objectDefinition) {
+
+		Map<ObjectRelationship, long[]> manyToManyRelatedPrimaryKeysMap =
+			new LinkedHashMap<>();
+
+		for (ObjectRelationship objectRelationship :
+				ObjectRelationshipLocalServiceUtil.getObjectRelationships(
+					objectDefinition.getObjectDefinitionId(),
+					ObjectRelationshipConstants.DELETION_TYPE_DISASSOCIATE,
+					false)) {
+
+			if (!objectRelationship.compareType(
+					ObjectRelationshipConstants.TYPE_MANY_TO_MANY)) {
+
+				continue;
+			}
+
+			InfoFieldValue<Object> infoFieldValue =
+				infoItemFieldValues.getInfoFieldValue(
+					ObjectRelationshipConstants.
+						OBJECT_RELATIONSHIP_FIELD_NAME_PREFIX +
+							objectRelationship.getName());
+
+			if (infoFieldValue == null) {
+				continue;
+			}
+
+			Object value = infoFieldValue.getValue();
+
+			if (!(value instanceof List)) {
+				manyToManyRelatedPrimaryKeysMap.put(
+					objectRelationship, new long[0]);
+
+				continue;
+			}
+
+			manyToManyRelatedPrimaryKeysMap.put(
+				objectRelationship,
+				TransformUtil.transformToLongArray(
+					(List<String>)value, GetterUtil::getLong));
+		}
+
+		return manyToManyRelatedPrimaryKeysMap;
+	}
 
 	public static Object getValue(
 			Locale locale, ObjectField objectField, Map<String, Object> values)

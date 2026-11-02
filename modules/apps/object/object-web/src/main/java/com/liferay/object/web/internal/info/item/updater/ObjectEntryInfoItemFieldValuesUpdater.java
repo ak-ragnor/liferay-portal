@@ -419,17 +419,12 @@ public class ObjectEntryInfoItemFieldValuesUpdater
 					objectDefinition.getCompanyId(),
 					objectDefinition.getStorageType()));
 
-		for (ObjectRelationship objectRelationship :
-				ObjectRelationshipLocalServiceUtil.getObjectRelationships(
-					objectDefinition.getObjectDefinitionId(),
-					ObjectRelationshipConstants.DELETION_TYPE_DISASSOCIATE,
-					false)) {
+		for (Map.Entry<ObjectRelationship, long[]> entry :
+				ObjectEntryUtil.getManyToManyRelatedPrimaryKeysMap(
+					infoItemFieldValues, objectDefinition
+				).entrySet()) {
 
-			if (!objectRelationship.compareType(
-					ObjectRelationshipConstants.TYPE_MANY_TO_MANY)) {
-
-				continue;
-			}
+			ObjectRelationship objectRelationship = entry.getKey();
 
 			ObjectDefinition relatedObjectDefinition =
 				ObjectRelationshipUtil.getRelatedObjectDefinition(
@@ -444,26 +439,11 @@ public class ObjectEntryInfoItemFieldValuesUpdater
 				objectDefinition, objectRelationship,
 				objectEntry.getPrimaryKey(), relatedObjectDefinition, userId);
 
-			InfoFieldValue<Object> infoFieldValue =
-				infoItemFieldValues.getInfoFieldValue(
-					ObjectRelationshipConstants.
-						OBJECT_RELATIONSHIP_FIELD_NAME_PREFIX +
-							objectRelationship.getName());
-
-			Object value = infoFieldValue.getValue();
-
-			if (!(value instanceof List)) {
-				continue;
-			}
-
-			List<String> relatedObjectEntryIds = (List<String>)value;
-
-			for (String relatedObjectEntryId : relatedObjectEntryIds) {
+			for (long relatedPrimaryKey : entry.getValue()) {
 				ObjectRelationshipLocalServiceUtil.
 					addObjectRelationshipMappingTableValues(
 						userId, objectRelationship.getObjectRelationshipId(),
-						objectEntry.getPrimaryKey(),
-						GetterUtil.getLong(relatedObjectEntryId),
+						objectEntry.getPrimaryKey(), relatedPrimaryKey,
 						serviceContext);
 			}
 		}
