@@ -5,13 +5,18 @@
 
 package com.liferay.translation.translator.azure.internal;
 
+import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.configuration.module.configuration.ConfigurationProvider;
 import com.liferay.portal.json.JSONFactoryImpl;
+import com.liferay.portal.kernel.json.JSONArray;
+import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.servlet.HttpHeaders;
 import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.Http;
+import com.liferay.portal.kernel.util.HttpComponentsUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.security.key.secret.SecretResolver;
@@ -21,6 +26,7 @@ import com.liferay.translation.translator.azure.internal.configuration.AzureTran
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -54,29 +60,62 @@ public class AzureTranslatorTest {
 
 		_setUpAzureTranslator(userAgent);
 
-		_azureTranslator.translate(_getTranslatorPacket("en_US", "ca_ES"));
+		_azureTranslator.translate(_getTranslatorPacket());
 
 		Assert.assertEquals(Collections.singletonList(userAgent), _userAgents);
 	}
 
 	@Test
 	public void testTranslateWhenUserAgentIsNotConfigured() throws Exception {
-		_azureTranslator.translate(_getTranslatorPacket("en_US", "ca_ES"));
+		_azureTranslator.translate(_getTranslatorPacket());
 
 		Assert.assertEquals(Collections.singletonList("Liferay"), _userAgents);
 	}
 
-	private String _getTranslationsJSON(String text) {
-		return JSONUtil.putAll(
-			JSONUtil.put(
-				"translations", JSONUtil.put(JSONUtil.put("text", text)))
-		).toString();
+	@Test
+	public void testTranslateWithHTMLAndPlainTextFields() throws Exception {
+		String htmlFieldName = RandomTestUtil.randomString();
+		String htmlText = StringBundler.concat(
+			"<a class=\"", RandomTestUtil.randomString(), "\" href=\"/",
+			RandomTestUtil.randomString(), "\">", RandomTestUtil.randomString(),
+			"</a>");
+		String plainFieldName = RandomTestUtil.randomString();
+		String plainText = RandomTestUtil.randomString();
+
+		Map<String, String> fieldsMap = HashMapBuilder.put(
+			htmlFieldName, htmlText
+		).put(
+			plainFieldName, plainText
+		).build();
+
+		TranslatorPacket translatorPacket = _azureTranslator.translate(
+			_getTranslatorPacket(
+				fieldsMap,
+				HashMapBuilder.put(
+					htmlFieldName, true
+				).put(
+					plainFieldName, false
+				).build()));
+
+		Assert.assertEquals(fieldsMap, translatorPacket.getFieldsMap());
+
+		Assert.assertEquals(
+			HashMapBuilder.put(
+				"html", Collections.singletonList(htmlText)
+			).put(
+				"plain", Collections.singletonList(plainText)
+			).build(),
+			_texts);
+	}
+
+	private TranslatorPacket _getTranslatorPacket() {
+		return _getTranslatorPacket(
+			Map.of(_INFO_FIELD_NAME, RandomTestUtil.randomString()),
+			Map.of(_INFO_FIELD_NAME, false));
 	}
 
 	private TranslatorPacket _getTranslatorPacket(
-		String sourceLanguage, String targetLanguage) {
-
-		String text = RandomTestUtil.randomString();
+		Map<String, String> fieldsMap, Map<String, Boolean> htmlMap) {
 
 		return new TranslatorPacket() {
 
@@ -87,22 +126,22 @@ public class AzureTranslatorTest {
 
 			@Override
 			public Map<String, String> getFieldsMap() {
-				return Map.of(_INFO_FIELD_NAME, text);
+				return fieldsMap;
 			}
 
 			@Override
 			public Map<String, Boolean> getHTMLMap() {
-				return Map.of(_INFO_FIELD_NAME, false);
+				return htmlMap;
 			}
 
 			@Override
 			public String getSourceLanguageId() {
-				return sourceLanguage;
+				return "en_US";
 			}
 
 			@Override
 			public String getTargetLanguageId() {
-				return targetLanguage;
+				return "ca_ES";
 			}
 
 		};
@@ -115,7 +154,7 @@ public class AzureTranslatorTest {
 		ReflectionTestUtil.setFieldValue(
 			_azureTranslator, "_http", _setUpHttp());
 		ReflectionTestUtil.setFieldValue(
-			_azureTranslator, "_jsonFactory", new JSONFactoryImpl());
+			_azureTranslator, "_jsonFactory", _jsonFactoryImpl);
 
 		SecretResolver secretResolver = Mockito.mock(SecretResolver.class);
 
@@ -190,7 +229,33 @@ public class AzureTranslatorTest {
 
 				options.setResponse(httpResponse);
 
-				return _getTranslationsJSON(RandomTestUtil.randomString());
+				Http.Body body = options.getBody();
+
+				JSONArray requestJSONArray = _jsonFactoryImpl.createJSONArray(
+					body.getContent());
+
+				List<String> texts = _texts.computeIfAbsent(
+					HttpComponentsUtil.getParameter(
+						options.getLocation(), "textType", false),
+					textType -> new ArrayList<>());
+
+				JSONArray responseJSONArray =
+					_jsonFactoryImpl.createJSONArray();
+
+				for (int i = 0; i < requestJSONArray.length(); i++) {
+					JSONObject jsonObject = requestJSONArray.getJSONObject(i);
+
+					String text = jsonObject.getString("Text");
+
+					texts.add(text);
+
+					responseJSONArray.put(
+						JSONUtil.put(
+							"translations",
+							JSONUtil.put(JSONUtil.put("text", text))));
+				}
+
+				return responseJSONArray.toString();
 			}
 		);
 
@@ -215,6 +280,8 @@ public class AzureTranslatorTest {
 		"infoField--JournalArticle_title--0";
 
 	private final AzureTranslator _azureTranslator = new AzureTranslator();
+	private final JSONFactoryImpl _jsonFactoryImpl = new JSONFactoryImpl();
+	private final Map<String, List<String>> _texts = new HashMap<>();
 	private final List<String> _userAgents = new ArrayList<>();
 
 }
