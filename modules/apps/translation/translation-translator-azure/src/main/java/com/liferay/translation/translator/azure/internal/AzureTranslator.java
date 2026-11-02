@@ -16,6 +16,8 @@ import com.liferay.portal.kernel.module.configuration.ConfigurationException;
 import com.liferay.portal.kernel.servlet.HttpHeaders;
 import com.liferay.portal.kernel.url.URLBuilder;
 import com.liferay.portal.kernel.util.ContentTypes;
+import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.Http;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.security.key.secret.SecretResolver;
@@ -27,6 +29,7 @@ import com.liferay.translation.translator.azure.internal.configuration.AzureTran
 import java.io.IOException;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.osgi.service.component.annotations.Component;
@@ -64,9 +67,31 @@ public class AzureTranslator extends BaseTranslator {
 			return translatorPacket;
 		}
 
-		Map<String, String> translatedFieldsMap = _translate(
-			azureTranslatorConfiguration, translatorPacket.getFieldsMap(),
-			translatorPacket);
+		Map<String, String> fieldsMap = translatorPacket.getFieldsMap();
+		Map<String, Boolean> htmlMap = translatorPacket.getHTMLMap();
+
+		Map<String, String> htmlFieldsMap = new LinkedHashMap<>();
+		Map<String, String> plainFieldsMap = new LinkedHashMap<>();
+
+		fieldsMap.forEach(
+			(key, value) -> {
+				if (GetterUtil.getBoolean(htmlMap.get(key))) {
+					htmlFieldsMap.put(key, value);
+				}
+				else {
+					plainFieldsMap.put(key, value);
+				}
+			});
+
+		Map<String, String> translatedFieldsMap = HashMapBuilder.putAll(
+			_translate(
+				azureTranslatorConfiguration, htmlFieldsMap, "html",
+				translatorPacket)
+		).putAll(
+			_translate(
+				azureTranslatorConfiguration, plainFieldsMap, "plain",
+				translatorPacket)
+		).build();
 
 		return new TranslatorPacket() {
 
@@ -142,8 +167,13 @@ public class AzureTranslator extends BaseTranslator {
 
 	private Map<String, String> _translate(
 			AzureTranslatorConfiguration azureTranslatorConfiguration,
-			Map<String, String> fieldsMap, TranslatorPacket translatorPacket)
+			Map<String, String> fieldsMap, String textType,
+			TranslatorPacket translatorPacket)
 		throws PortalException {
+
+		if (fieldsMap.isEmpty()) {
+			return fieldsMap;
+		}
 
 		try {
 			Http.Options options = new Http.Options();
@@ -172,6 +202,8 @@ public class AzureTranslator extends BaseTranslator {
 				).addParameter(
 					"from",
 					getLanguageCode(translatorPacket.getSourceLanguageId())
+				).addParameter(
+					"textType", textType
 				).addParameter(
 					"to",
 					getLanguageCode(translatorPacket.getTargetLanguageId())
