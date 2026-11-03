@@ -34,6 +34,10 @@ import com.liferay.object.service.ObjectEntryLocalServiceUtil;
 import com.liferay.object.service.ObjectRelationshipLocalServiceUtil;
 import com.liferay.object.web.internal.model.ProxyObjectEntry;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.security.permission.ActionKeys;
+import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
+import com.liferay.portal.kernel.security.permission.resource.ModelResourcePermission;
+import com.liferay.portal.kernel.security.permission.resource.ModelResourcePermissionRegistryUtil;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.util.DateUtil;
 import com.liferay.portal.kernel.util.FastDateFormatFactoryUtil;
@@ -216,12 +220,21 @@ public class ObjectEntryUtil {
 			objectDefinition, objectRelationship, primaryKey,
 			relatedObjectDefinition, userId);
 
+		ModelResourcePermission<?> modelResourcePermission =
+			ModelResourcePermissionRegistryUtil.getModelResourcePermission(
+				relatedObjectDefinition.getClassName());
+
 		for (String relatedObjectEntryId : relatedObjectEntryIds) {
+			long relatedPrimaryKey = GetterUtil.getLong(relatedObjectEntryId);
+
+			modelResourcePermission.check(
+				PermissionThreadLocal.getPermissionChecker(), relatedPrimaryKey,
+				ActionKeys.VIEW);
+
 			ObjectRelationshipLocalServiceUtil.
 				addObjectRelationshipMappingTableValues(
 					userId, objectRelationship.getObjectRelationshipId(),
-					primaryKey, GetterUtil.getLong(relatedObjectEntryId),
-					serviceContext);
+					primaryKey, relatedPrimaryKey, serviceContext);
 		}
 	}
 
