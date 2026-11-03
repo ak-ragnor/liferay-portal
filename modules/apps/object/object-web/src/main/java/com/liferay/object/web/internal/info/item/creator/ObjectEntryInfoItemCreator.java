@@ -13,20 +13,23 @@ import com.liferay.info.item.provider.InfoItemFormProvider;
 import com.liferay.object.info.item.util.ObjectEntryInfoItemUtil;
 import com.liferay.object.model.ObjectDefinition;
 import com.liferay.object.model.ObjectEntry;
-import com.liferay.object.model.ObjectRelationship;
 import com.liferay.object.rest.dto.v1_0.Status;
+import com.liferay.object.rest.manager.v1_0.DefaultObjectEntryManagerProvider;
 import com.liferay.object.rest.manager.v1_0.ObjectEntryManager;
 import com.liferay.object.rest.manager.v1_0.ObjectEntryManagerRegistry;
 import com.liferay.object.scope.ObjectScopeProviderRegistry;
 import com.liferay.object.service.ObjectDefinitionLocalService;
 import com.liferay.object.service.ObjectEntryLocalService;
-import com.liferay.object.service.ObjectRelationshipLocalServiceUtil;
 import com.liferay.object.web.internal.info.item.handler.ObjectEntryInfoItemExceptionRequestHandler;
 import com.liferay.object.web.internal.util.ObjectEntryUtil;
 import com.liferay.portal.kernel.exception.InfoFormException;
+import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.ServiceContextThreadLocal;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
+import com.liferay.portal.kernel.transaction.Propagation;
+import com.liferay.portal.kernel.transaction.TransactionConfig;
+import com.liferay.portal.kernel.transaction.TransactionInvokerUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.DateFormatFactoryUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
@@ -66,98 +69,112 @@ public class ObjectEntryInfoItemCreator
 		throws InfoFormException {
 
 		try {
-			ObjectDefinition objectDefinition =
-				_objectDefinitionLocalService.getObjectDefinition(
-					_objectDefinitionId);
-
-			DateFormat dateFormat = DateFormatFactoryUtil.getSimpleDateFormat(
-				"yyyy-MM-dd HH:mm");
-
-			ObjectEntryManager objectEntryManager =
-				_objectEntryManagerRegistry.getObjectEntryManager(
-					objectDefinition.getCompanyId(),
-					objectDefinition.getStorageType());
-
-			ServiceContext serviceContext =
-				ServiceContextThreadLocal.getServiceContext();
-
-			ThemeDisplay themeDisplay = serviceContext.getThemeDisplay();
-
-			Map<String, Object> curProperties = _getProperties(
-				infoItemFieldValues, objectDefinition, themeDisplay);
-
-			DTOConverterContext dtoConverterContext =
-				new DefaultDTOConverterContext(
-					false, null, null, null, null, themeDisplay.getLocale(),
-					null, themeDisplay.getUser());
-
-			dtoConverterContext.setAttribute("addActions", Boolean.FALSE);
-
-			com.liferay.object.rest.dto.v1_0.ObjectEntry objectEntry =
-				objectEntryManager.addObjectEntry(
-					dtoConverterContext, objectDefinition,
-					new com.liferay.object.rest.dto.v1_0.ObjectEntry() {
-						{
-							setDisplayDate(
-								() -> GetterUtil.getDate(
-									curProperties.get("displayDate"),
-									dateFormat, null));
-							setExpirationDate(
-								() -> GetterUtil.getDate(
-									curProperties.get("expirationDate"),
-									dateFormat, null));
-							setFriendlyUrlPath(
-								() -> GetterUtil.getString(
-									curProperties.get("objectEntryFriendlyURL"),
-									null));
-							setFriendlyUrlPath_i18n(
-								() -> (Map<String, String>)curProperties.get(
-									"objectEntryFriendlyURL_i18n"));
-							setKeywords(serviceContext::getAssetTagNames);
-							setProperties(() -> curProperties);
-							setReviewDate(
-								() -> GetterUtil.getDate(
-									curProperties.get("reviewDate"), dateFormat,
-									null));
-							setStatus(
-								() -> new Status() {
-									{
-										setCode(() -> statusInt);
-									}
-								});
-							setTaxonomyCategoryIds(
-								() -> ArrayUtil.toLongArray(
-									serviceContext.getAssetCategoryIds()));
-						}
-					},
-					ObjectEntryInfoItemUtil.getScopeKey(
-						groupId, objectDefinition,
-						_objectScopeProviderRegistry));
-
-			ObjectEntry serviceBuilderObjectEntry =
-				_objectEntryLocalService.createObjectEntry(
-					GetterUtil.getLong(objectEntry.getId()));
-
-			serviceBuilderObjectEntry.setExternalReferenceCode(
-				objectEntry.getExternalReferenceCode());
-			serviceBuilderObjectEntry.setObjectDefinitionId(
-				objectDefinition.getObjectDefinitionId());
-
-			if (objectDefinition.isDefaultStorageType()) {
-				_relateManyToManyObjectEntries(
-					infoItemFieldValues, objectDefinition,
-					serviceBuilderObjectEntry.getObjectEntryId(),
-					serviceContext, themeDisplay.getUserId());
-			}
-
-			return serviceBuilderObjectEntry;
+			return TransactionInvokerUtil.invoke(
+				_transactionConfig,
+				() -> _createFromInfoItemFieldValues(
+					groupId, infoItemFieldValues, statusInt));
 		}
 		catch (Exception exception) {
 			ObjectEntryInfoItemExceptionRequestHandler.handleInfoFormException(
 				exception, groupId, _infoItemFormProvider, _objectDefinitionId);
 		}
+		catch (Throwable throwable) {
+			throw new SystemException(throwable);
+		}
 
 		return null;
+	}
+
+	private ObjectEntry _createFromInfoItemFieldValues(
+			long groupId, InfoItemFieldValues infoItemFieldValues,
+			int statusInt)
+		throws Exception {
+
+		ObjectDefinition objectDefinition =
+			_objectDefinitionLocalService.getObjectDefinition(
+				_objectDefinitionId);
+
+		DateFormat dateFormat = DateFormatFactoryUtil.getSimpleDateFormat(
+			"yyyy-MM-dd HH:mm");
+
+		ObjectEntryManager objectEntryManager =
+			_objectEntryManagerRegistry.getObjectEntryManager(
+				objectDefinition.getCompanyId(),
+				objectDefinition.getStorageType());
+
+		ServiceContext serviceContext =
+			ServiceContextThreadLocal.getServiceContext();
+
+		ThemeDisplay themeDisplay = serviceContext.getThemeDisplay();
+
+		Map<String, Object> curProperties = _getProperties(
+			infoItemFieldValues, objectDefinition, themeDisplay);
+
+		DTOConverterContext dtoConverterContext =
+			new DefaultDTOConverterContext(
+				false, null, null, null, null, themeDisplay.getLocale(), null,
+				themeDisplay.getUser());
+
+		dtoConverterContext.setAttribute("addActions", Boolean.FALSE);
+
+		com.liferay.object.rest.dto.v1_0.ObjectEntry objectEntry =
+			objectEntryManager.addObjectEntry(
+				dtoConverterContext, objectDefinition,
+				new com.liferay.object.rest.dto.v1_0.ObjectEntry() {
+					{
+						setDisplayDate(
+							() -> GetterUtil.getDate(
+								curProperties.get("displayDate"), dateFormat,
+								null));
+						setExpirationDate(
+							() -> GetterUtil.getDate(
+								curProperties.get("expirationDate"), dateFormat,
+								null));
+						setFriendlyUrlPath(
+							() -> GetterUtil.getString(
+								curProperties.get("objectEntryFriendlyURL"),
+								null));
+						setFriendlyUrlPath_i18n(
+							() -> (Map<String, String>)curProperties.get(
+								"objectEntryFriendlyURL_i18n"));
+						setKeywords(serviceContext::getAssetTagNames);
+						setProperties(() -> curProperties);
+						setReviewDate(
+							() -> GetterUtil.getDate(
+								curProperties.get("reviewDate"), dateFormat,
+								null));
+						setStatus(
+							() -> new Status() {
+								{
+									setCode(() -> statusInt);
+								}
+							});
+						setTaxonomyCategoryIds(
+							() -> ArrayUtil.toLongArray(
+								serviceContext.getAssetCategoryIds()));
+					}
+				},
+				ObjectEntryInfoItemUtil.getScopeKey(
+					groupId, objectDefinition, _objectScopeProviderRegistry));
+
+		if (objectDefinition.isDefaultStorageType()) {
+			ObjectEntryUtil.relateObjectEntries(
+				DefaultObjectEntryManagerProvider.provide(objectEntryManager),
+				infoItemFieldValues, objectDefinition,
+				GetterUtil.getLong(objectEntry.getId()), serviceContext,
+				themeDisplay.getUserId());
+		}
+
+		ObjectEntry serviceBuilderObjectEntry =
+			_objectEntryLocalService.createObjectEntry(
+				GetterUtil.getLong(objectEntry.getId()));
+
+		serviceBuilderObjectEntry.setExternalReferenceCode(
+			objectEntry.getExternalReferenceCode());
+		serviceBuilderObjectEntry.setObjectDefinitionId(
+			objectDefinition.getObjectDefinitionId());
+
+		return serviceBuilderObjectEntry;
 	}
 
 	private Map<String, Object> _getProperties(
@@ -177,29 +194,9 @@ public class ObjectEntryInfoItemCreator
 			themeDisplay.getCompanyId(), infoItemFieldValues, null);
 	}
 
-	private void _relateManyToManyObjectEntries(
-			InfoItemFieldValues infoItemFieldValues,
-			ObjectDefinition objectDefinition, long objectEntryId,
-			ServiceContext serviceContext, long userId)
-		throws Exception {
-
-		Map<ObjectRelationship, long[]> manyToManyRelatedPrimaryKeysMap =
-			ObjectEntryUtil.getManyToManyRelatedPrimaryKeysMap(
-				infoItemFieldValues, objectDefinition);
-
-		for (Map.Entry<ObjectRelationship, long[]> entry :
-				manyToManyRelatedPrimaryKeysMap.entrySet()) {
-
-			ObjectRelationship objectRelationship = entry.getKey();
-
-			for (long relatedPrimaryKey : entry.getValue()) {
-				ObjectRelationshipLocalServiceUtil.
-					addObjectRelationshipMappingTableValues(
-						userId, objectRelationship.getObjectRelationshipId(),
-						objectEntryId, relatedPrimaryKey, serviceContext);
-			}
-		}
-	}
+	private static final TransactionConfig _transactionConfig =
+		TransactionConfig.Factory.create(
+			Propagation.REQUIRED, new Class<?>[] {Exception.class});
 
 	private final InfoItemFormProvider<ObjectEntry> _infoItemFormProvider;
 	private final long _objectDefinitionId;
