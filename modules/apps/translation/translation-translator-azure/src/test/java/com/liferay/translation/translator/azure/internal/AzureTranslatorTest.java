@@ -28,6 +28,7 @@ import com.liferay.translation.translator.azure.internal.configuration.AzureTran
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -139,6 +140,59 @@ public class AzureTranslatorTest {
 
 		Assert.assertEquals(
 			Map.of("html", Collections.singletonList(text)), _texts);
+	}
+
+	@Test
+	public void testTranslateWithInterleavedHTMLAndPlainTextFields()
+		throws Exception {
+
+		Map<String, String> fieldsMap = new LinkedHashMap<>();
+		Map<String, Boolean> htmlMap = new LinkedHashMap<>();
+
+		List<String> htmlTexts = new ArrayList<>();
+		List<String> plainTexts = new ArrayList<>();
+
+		for (int i = 0; i < 4; i++) {
+			boolean html = false;
+
+			if ((i % 2) == 0) {
+				html = true;
+			}
+
+			String text = RandomTestUtil.randomString();
+
+			if (html) {
+				text = StringBundler.concat("<b>", text, "</b>");
+
+				htmlTexts.add(text);
+			}
+			else {
+				plainTexts.add(text);
+			}
+
+			String fieldName = RandomTestUtil.randomString();
+
+			fieldsMap.put(fieldName, text);
+			htmlMap.put(fieldName, html);
+		}
+
+		TranslatorPacket translatorPacket = _azureTranslator.translate(
+			_getTranslatorPacket(fieldsMap, htmlMap));
+
+		Assert.assertEquals(fieldsMap, translatorPacket.getFieldsMap());
+		Assert.assertEquals(htmlMap, translatorPacket.getHTMLMap());
+		Assert.assertEquals("en_US", translatorPacket.getSourceLanguageId());
+		Assert.assertEquals("ca_ES", translatorPacket.getTargetLanguageId());
+
+		Assert.assertEquals(
+			HashMapBuilder.put(
+				"html", htmlTexts
+			).put(
+				"plain", plainTexts
+			).build(),
+			_texts);
+
+		Assert.assertEquals(List.of("Liferay", "Liferay"), _userAgents);
 	}
 
 	private TranslatorPacket _getTranslatorPacket() {
