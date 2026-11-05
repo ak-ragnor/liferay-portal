@@ -18,6 +18,7 @@ import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.Http;
 import com.liferay.portal.kernel.util.HttpComponentsUtil;
+import com.liferay.portal.kernel.util.LinkedHashMapBuilder;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.security.key.secret.SecretResolver;
@@ -206,6 +207,29 @@ public class AzureTranslatorTest {
 
 		Assert.assertEquals(Collections.emptyMap(), _texts);
 		Assert.assertEquals(Collections.emptyList(), _userAgents);
+	}
+
+	@Test
+	public void testTranslateWithoutHTMLFlags() throws Exception {
+		String htmlFieldName = RandomTestUtil.randomString();
+		String htmlText = StringBundler.concat(
+			"<p>", RandomTestUtil.randomString(), "</p>");
+		String plainText = RandomTestUtil.randomString();
+
+		Map<String, String> fieldsMap = LinkedHashMapBuilder.put(
+			htmlFieldName, htmlText
+		).put(
+			RandomTestUtil.randomString(), plainText
+		).build();
+
+		TranslatorPacket translatorPacket = _azureTranslator.translate(
+			_getTranslatorPacket(
+				fieldsMap, Collections.singletonMap(htmlFieldName, null)));
+
+		Assert.assertEquals(fieldsMap, translatorPacket.getFieldsMap());
+
+		Assert.assertEquals(
+			Map.of("plain", List.of(htmlText, plainText)), _texts);
 	}
 
 	private TranslatorPacket _getTranslatorPacket() {
