@@ -8,6 +8,7 @@ package com.liferay.translation.translator.azure.internal;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.configuration.module.configuration.ConfigurationProvider;
 import com.liferay.portal.json.JSONFactoryImpl;
+import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
@@ -52,6 +53,21 @@ public class AzureTranslatorTest {
 	public void setUp() throws Exception {
 		_setUpAzureTranslator(null);
 		_setUpPortalUtil();
+	}
+
+	@Test
+	public void testTranslateWhenResponseCodeIsNotOK() throws Exception {
+		_responseCode = 500;
+
+		try {
+			_azureTranslator.translate(_getTranslatorPacket());
+
+			Assert.fail();
+		}
+		catch (PortalException portalException) {
+			Assert.assertEquals(
+				"Response code 500", portalException.getMessage());
+		}
 	}
 
 	@Test
@@ -225,7 +241,7 @@ public class AzureTranslatorTest {
 
 				Http.Response httpResponse = new Http.Response();
 
-				httpResponse.setResponseCode(200);
+				httpResponse.setResponseCode(_responseCode);
 
 				options.setResponse(httpResponse);
 
@@ -281,6 +297,7 @@ public class AzureTranslatorTest {
 
 	private final AzureTranslator _azureTranslator = new AzureTranslator();
 	private final JSONFactoryImpl _jsonFactoryImpl = new JSONFactoryImpl();
+	private int _responseCode = 200;
 	private final Map<String, List<String>> _texts = new HashMap<>();
 	private final List<String> _userAgents = new ArrayList<>();
 
