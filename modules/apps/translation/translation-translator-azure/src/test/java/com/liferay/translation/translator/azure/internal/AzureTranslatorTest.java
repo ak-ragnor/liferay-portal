@@ -195,6 +195,19 @@ public class AzureTranslatorTest {
 		Assert.assertEquals(List.of("Liferay", "Liferay"), _userAgents);
 	}
 
+	@Test
+	public void testTranslateWithoutFields() throws Exception {
+		TranslatorPacket translatorPacket = _azureTranslator.translate(
+			_getTranslatorPacket(
+				Collections.emptyMap(), Collections.emptyMap()));
+
+		Assert.assertEquals(
+			Collections.emptyMap(), translatorPacket.getFieldsMap());
+
+		Assert.assertEquals(Collections.emptyMap(), _texts);
+		Assert.assertEquals(Collections.emptyList(), _userAgents);
+	}
+
 	private TranslatorPacket _getTranslatorPacket() {
 		return _getTranslatorPacket(
 			Map.of(_INFO_FIELD_NAME, RandomTestUtil.randomString()),
