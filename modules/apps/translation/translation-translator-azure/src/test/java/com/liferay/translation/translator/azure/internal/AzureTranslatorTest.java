@@ -124,6 +124,23 @@ public class AzureTranslatorTest {
 			_texts);
 	}
 
+	@Test
+	public void testTranslateWithHTMLFields() throws Exception {
+		String fieldName = RandomTestUtil.randomString();
+		String text = StringBundler.concat(
+			"<p>", RandomTestUtil.randomString(), "</p>");
+
+		TranslatorPacket translatorPacket = _azureTranslator.translate(
+			_getTranslatorPacket(
+				Map.of(fieldName, text), Map.of(fieldName, true)));
+
+		Assert.assertEquals(
+			Map.of(fieldName, text), translatorPacket.getFieldsMap());
+
+		Assert.assertEquals(
+			Map.of("html", Collections.singletonList(text)), _texts);
+	}
+
 	private TranslatorPacket _getTranslatorPacket() {
 		return _getTranslatorPacket(
 			Map.of(_INFO_FIELD_NAME, RandomTestUtil.randomString()),
