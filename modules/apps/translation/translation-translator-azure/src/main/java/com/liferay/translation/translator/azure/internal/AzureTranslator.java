@@ -12,13 +12,15 @@ import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
+import com.liferay.portal.kernel.log.Log;
+import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.module.configuration.ConfigurationException;
 import com.liferay.portal.kernel.servlet.HttpHeaders;
 import com.liferay.portal.kernel.url.URLBuilder;
 import com.liferay.portal.kernel.util.ContentTypes;
 import com.liferay.portal.kernel.util.GetterUtil;
-import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.Http;
+import com.liferay.portal.kernel.util.MapUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.security.key.secret.SecretResolver;
 import com.liferay.translation.translator.BaseTranslator;
@@ -28,8 +30,9 @@ import com.liferay.translation.translator.azure.internal.configuration.AzureTran
 
 import java.io.IOException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.osgi.service.component.annotations.Component;
@@ -70,28 +73,18 @@ public class AzureTranslator extends BaseTranslator {
 		Map<String, String> fieldsMap = translatorPacket.getFieldsMap();
 		Map<String, Boolean> htmlMap = translatorPacket.getHTMLMap();
 
-		Map<String, String> htmlFieldsMap = new LinkedHashMap<>();
-		Map<String, String> plainFieldsMap = new LinkedHashMap<>();
+		Map<Boolean, List<String>> keysMap = MapUtil.toPartitionMap(
+			new ArrayList<>(fieldsMap.keySet()),
+			key -> GetterUtil.getBoolean(htmlMap.get(key)));
 
-		fieldsMap.forEach(
-			(key, value) -> {
-				if (GetterUtil.getBoolean(htmlMap.get(key))) {
-					htmlFieldsMap.put(key, value);
-				}
-				else {
-					plainFieldsMap.put(key, value);
-				}
-			});
+		Map<String, String> translatedFieldsMap = new HashMap<>();
 
-		Map<String, String> translatedFieldsMap = HashMapBuilder.putAll(
-			_translate(
-				azureTranslatorConfiguration, htmlFieldsMap, "html",
-				translatorPacket)
-		).putAll(
-			_translate(
-				azureTranslatorConfiguration, plainFieldsMap, "plain",
-				translatorPacket)
-		).build();
+		for (Map.Entry<Boolean, List<String>> entry : keysMap.entrySet()) {
+			translatedFieldsMap.putAll(
+				_translate(
+					azureTranslatorConfiguration, entry.getKey(),
+					entry.getValue(), translatorPacket));
+		}
 
 		return new TranslatorPacket() {
 
@@ -123,23 +116,34 @@ public class AzureTranslator extends BaseTranslator {
 		};
 	}
 
-	private String _getPayload(Map<String, String> fieldsMap) {
-		JSONArray jsonArray = _jsonFactory.createJSONArray();
+	private String _getLocation(
+		boolean html, TranslatorPacket translatorPacket) {
 
-		fieldsMap.forEach(
-			(key, value) -> jsonArray.put(JSONUtil.put("Text", value)));
+		String textType = "plain";
 
-		return jsonArray.toString();
+		if (html) {
+			textType = "html";
+		}
+
+		return URLBuilder.create(
+			"https://api.cognitive.microsofttranslator.com/translate"
+		).addParameter(
+			"api-version", "3.0"
+		).addParameter(
+			"from", getLanguageCode(translatorPacket.getSourceLanguageId())
+		).addParameter(
+			"textType", textType
+		).addParameter(
+			"to", getLanguageCode(translatorPacket.getTargetLanguageId())
+		).build();
 	}
 
 	private Map<String, String> _getTranslatedFieldsMap(
-		Map<String, String> fieldsMap, JSONArray jsonArray) {
+		JSONArray jsonArray, List<String> keys) {
 
 		Map<String, String> translatedFieldsMap = new HashMap<>();
 
-		int i = 0;
-
-		for (String key : fieldsMap.keySet()) {
+		for (int i = 0; i < keys.size(); i++) {
 			JSONObject jsonObject = jsonArray.getJSONObject(i);
 
 			JSONArray translationsJSONArray = jsonObject.getJSONArray(
@@ -149,9 +153,7 @@ public class AzureTranslator extends BaseTranslator {
 				translationsJSONArray.getJSONObject(0);
 
 			translatedFieldsMap.put(
-				key, translationJSONObject.getString("text"));
-
-			i++;
+				keys.get(i), translationJSONObject.getString("text"));
 		}
 
 		return translatedFieldsMap;
@@ -165,67 +167,68 @@ public class AzureTranslator extends BaseTranslator {
 		return userAgent;
 	}
 
-	private Map<String, String> _translate(
+	private JSONArray _invoke(
 			AzureTranslatorConfiguration azureTranslatorConfiguration,
-			Map<String, String> fieldsMap, String textType,
-			TranslatorPacket translatorPacket)
+			long companyId, String location, JSONArray requestJSONArray)
 		throws PortalException {
 
-		if (fieldsMap.isEmpty()) {
-			return fieldsMap;
-		}
+		Http.Options options = new Http.Options();
+
+		options.addHeader(
+			HttpHeaders.CONTENT_TYPE, ContentTypes.APPLICATION_JSON);
+		options.addHeader(
+			HttpHeaders.USER_AGENT,
+			_getUserAgent(azureTranslatorConfiguration.userAgent()));
+		options.addHeader(
+			"Ocp-Apim-Subscription-Key",
+			_secretResolver.resolve(
+				companyId, azureTranslatorConfiguration.subscriptionKey()));
+		options.addHeader(
+			"Ocp-Apim-Subscription-Region",
+			azureTranslatorConfiguration.resourceLocation());
+		options.setBody(
+			requestJSONArray.toString(), ContentTypes.APPLICATION_JSON,
+			StringPool.UTF8);
+		options.setLocation(location);
+		options.setPost(true);
+
+		String json = null;
 
 		try {
-			Http.Options options = new Http.Options();
-
-			options.addHeader(
-				HttpHeaders.CONTENT_TYPE, ContentTypes.APPLICATION_JSON);
-			options.addHeader(
-				HttpHeaders.USER_AGENT,
-				_getUserAgent(azureTranslatorConfiguration.userAgent()));
-			options.addHeader(
-				"Ocp-Apim-Subscription-Key",
-				_secretResolver.resolve(
-					translatorPacket.getCompanyId(),
-					azureTranslatorConfiguration.subscriptionKey()));
-			options.addHeader(
-				"Ocp-Apim-Subscription-Region",
-				azureTranslatorConfiguration.resourceLocation());
-			options.setBody(
-				_getPayload(fieldsMap), ContentTypes.APPLICATION_JSON,
-				StringPool.UTF8);
-			options.setLocation(
-				URLBuilder.create(
-					"https://api.cognitive.microsofttranslator.com/translate"
-				).addParameter(
-					"api-version", "3.0"
-				).addParameter(
-					"from",
-					getLanguageCode(translatorPacket.getSourceLanguageId())
-				).addParameter(
-					"textType", textType
-				).addParameter(
-					"to",
-					getLanguageCode(translatorPacket.getTargetLanguageId())
-				).build());
-			options.setPost(true);
-
-			String json = _http.URLtoString(options);
-
-			Http.Response response = options.getResponse();
-
-			if (response.getResponseCode() != 200) {
-				throw new PortalException(
-					"Response code " + response.getResponseCode());
-			}
-
-			return _getTranslatedFieldsMap(
-				fieldsMap, _jsonFactory.createJSONArray(json));
+			json = _http.URLtoString(options);
 		}
 		catch (IOException ioException) {
 			throw new PortalException(ioException);
 		}
+
+		Http.Response response = options.getResponse();
+
+		if (response.getResponseCode() != 200) {
+			throw new PortalException(
+				"Response code " + response.getResponseCode());
+		}
+
+		return _jsonFactory.createJSONArray(json);
 	}
+
+	private Map<String, String> _translate(
+			AzureTranslatorConfiguration azureTranslatorConfiguration,
+			boolean html, List<String> keys, TranslatorPacket translatorPacket)
+		throws PortalException {
+
+		Map<String, String> fieldsMap = translatorPacket.getFieldsMap();
+
+		JSONArray jsonArray = _invoke(
+			azureTranslatorConfiguration, translatorPacket.getCompanyId(),
+			_getLocation(html, translatorPacket),
+			JSONUtil.toJSONArray(
+				keys, key -> JSONUtil.put("Text", fieldsMap.get(key)), _log));
+
+		return _getTranslatedFieldsMap(jsonArray, keys);
+	}
+
+	private static final Log _log = LogFactoryUtil.getLog(
+		AzureTranslator.class);
 
 	@Reference
 	private ConfigurationProvider _configurationProvider;
