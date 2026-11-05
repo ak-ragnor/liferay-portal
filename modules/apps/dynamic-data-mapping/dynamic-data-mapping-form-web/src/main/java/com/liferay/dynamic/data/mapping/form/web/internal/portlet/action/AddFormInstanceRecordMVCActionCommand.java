@@ -23,7 +23,6 @@ import com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecord;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstanceRecordVersion;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstanceSettings;
 import com.liferay.dynamic.data.mapping.model.DDMFormInstanceVersion;
-import com.liferay.dynamic.data.mapping.model.DDMStructure;
 import com.liferay.dynamic.data.mapping.model.DDMStructureVersion;
 import com.liferay.dynamic.data.mapping.render.DDMFormFieldRenderingContext;
 import com.liferay.dynamic.data.mapping.service.DDMFormInstanceLocalService;
@@ -113,7 +112,10 @@ public class AddFormInstanceRecordMVCActionCommand
 
 		_validateCaptcha(actionRequest, ddmFormInstance);
 
-		DDMForm ddmForm = getDDMForm(ddmFormInstance);
+		DDMStructureVersion ddmStructureVersion = _getDDMStructureVersion(
+			ddmFormInstance);
+
+		DDMForm ddmForm = ddmStructureVersion.getDDMForm();
 
 		DDMFormValues ddmFormValues = _ddmFormValuesFactory.create(
 			actionRequest, ddmForm);
@@ -149,13 +151,11 @@ public class AddFormInstanceRecordMVCActionCommand
 					_portal.getUserId(actionRequest)
 				).build());
 
-		DDMStructure ddmStructure = ddmFormInstance.getStructure();
-
 		AddFormInstanceRecordMVCCommandUtil.updateNonevaluableDDMFormFields(
 			ddmForm.getDDMFormFieldsMap(true),
 			ddmFormEvaluatorEvaluateResponse.getDDMFormFieldsPropertyChanges(),
 			ddmFormValues.getDDMFormFieldValuesMap(true),
-			ddmStructure.getDDMFormLayout(),
+			ddmStructureVersion.getDDMFormLayout(),
 			ddmFormEvaluatorEvaluateResponse.getDisabledPagesIndexes());
 
 		long ddmFormInstanceRecordId = ParamUtil.getLong(
@@ -225,20 +225,6 @@ public class AddFormInstanceRecordMVCActionCommand
 				actionRequest, "redirect", ddmFormInstanceSettingsRedirectURL));
 	}
 
-	protected DDMForm getDDMForm(DDMFormInstance ddmFormInstance)
-		throws PortalException {
-
-		DDMFormInstanceVersion latestDDMFormInstanceVersion =
-			_ddmFormInstanceVersionLocalService.getLatestFormInstanceVersion(
-				ddmFormInstance.getFormInstanceId(),
-				WorkflowConstants.STATUS_APPROVED);
-
-		DDMStructureVersion ddmStructureVersion =
-			latestDDMFormInstanceVersion.getStructureVersion();
-
-		return ddmStructureVersion.getDDMForm();
-	}
-
 	private void _createDDMFormFieldOptionsFromDataProvider(
 		ActionRequest actionRequest, DDMForm ddmForm, Locale locale) {
 
@@ -265,6 +251,18 @@ public class AddFormInstanceRecordMVCActionCommand
 				_ddmFormFieldOptionsFactory.create(
 					ddmFormField, ddmFormFieldRenderingContext));
 		}
+	}
+
+	private DDMStructureVersion _getDDMStructureVersion(
+			DDMFormInstance ddmFormInstance)
+		throws PortalException {
+
+		DDMFormInstanceVersion latestDDMFormInstanceVersion =
+			_ddmFormInstanceVersionLocalService.getLatestFormInstanceVersion(
+				ddmFormInstance.getFormInstanceId(),
+				WorkflowConstants.STATUS_APPROVED);
+
+		return latestDDMFormInstanceVersion.getStructureVersion();
 	}
 
 	private String _getTimeZoneId(ThemeDisplay themeDisplay) {
