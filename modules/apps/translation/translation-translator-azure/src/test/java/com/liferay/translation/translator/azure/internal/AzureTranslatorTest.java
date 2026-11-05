@@ -10,7 +10,6 @@ import com.liferay.portal.configuration.module.configuration.ConfigurationProvid
 import com.liferay.portal.json.JSONFactoryImpl;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.json.JSONArray;
-import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.servlet.HttpHeaders;
 import com.liferay.portal.kernel.test.ReflectionTestUtil;
@@ -29,7 +28,6 @@ import com.liferay.translation.translator.azure.internal.configuration.AzureTran
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -58,40 +56,37 @@ public class AzureTranslatorTest {
 	}
 
 	@Test
-	public void testTranslateWhenResponseCodeIsNotOK() throws Exception {
-		_responseCode = 500;
+	public void testTranslateWhenFieldsAreEmpty() throws Exception {
+		TranslatorPacket translatorPacket = _azureTranslator.translate(
+			_getTranslatorPacket(
+				Collections.emptyMap(), Collections.emptyMap()));
 
-		try {
-			_azureTranslator.translate(_getTranslatorPacket());
+		Assert.assertEquals(
+			Collections.emptyMap(), translatorPacket.getFieldsMap());
 
-			Assert.fail();
-		}
-		catch (PortalException portalException) {
-			Assert.assertEquals(
-				"Response code 500", portalException.getMessage());
-		}
+		Assert.assertEquals(Collections.emptyMap(), _texts);
+		Assert.assertEquals(Collections.emptyList(), _userAgents);
 	}
 
 	@Test
-	public void testTranslateWhenUserAgentIsConfigured() throws Exception {
-		String userAgent = RandomTestUtil.randomString();
+	public void testTranslateWhenFieldsAreHTML() throws Exception {
+		String fieldName = RandomTestUtil.randomString();
+		String text = StringBundler.concat(
+			"<p>", RandomTestUtil.randomString(), "</p>");
 
-		_setUpAzureTranslator(userAgent);
+		TranslatorPacket translatorPacket = _azureTranslator.translate(
+			_getTranslatorPacket(
+				Map.of(fieldName, text), Map.of(fieldName, true)));
 
-		_azureTranslator.translate(_getTranslatorPacket());
+		Assert.assertEquals(
+			Map.of(fieldName, text), translatorPacket.getFieldsMap());
 
-		Assert.assertEquals(Collections.singletonList(userAgent), _userAgents);
+		Assert.assertEquals(
+			Map.of("html", Collections.singletonList(text)), _texts);
 	}
 
 	@Test
-	public void testTranslateWhenUserAgentIsNotConfigured() throws Exception {
-		_azureTranslator.translate(_getTranslatorPacket());
-
-		Assert.assertEquals(Collections.singletonList("Liferay"), _userAgents);
-	}
-
-	@Test
-	public void testTranslateWithHTMLAndPlainTextFields() throws Exception {
+	public void testTranslateWhenFieldsAreHTMLAndPlainText() throws Exception {
 		String htmlFieldName = RandomTestUtil.randomString();
 		String htmlText = StringBundler.concat(
 			"<a class=\"", RandomTestUtil.randomString(), "\" href=\"/",
@@ -127,55 +122,37 @@ public class AzureTranslatorTest {
 	}
 
 	@Test
-	public void testTranslateWithHTMLFields() throws Exception {
-		String fieldName = RandomTestUtil.randomString();
-		String text = StringBundler.concat(
-			"<p>", RandomTestUtil.randomString(), "</p>");
+	public void testTranslateWhenFieldsAreInterleaved() throws Exception {
+		String htmlFieldName1 = RandomTestUtil.randomString();
+		String htmlFieldName2 = RandomTestUtil.randomString();
+		String htmlText1 = StringBundler.concat(
+			"<b>", RandomTestUtil.randomString(), "</b>");
+		String htmlText2 = StringBundler.concat(
+			"<b>", RandomTestUtil.randomString(), "</b>");
+		String plainFieldName1 = RandomTestUtil.randomString();
+		String plainFieldName2 = RandomTestUtil.randomString();
+		String plainText1 = RandomTestUtil.randomString();
+		String plainText2 = RandomTestUtil.randomString();
 
-		TranslatorPacket translatorPacket = _azureTranslator.translate(
-			_getTranslatorPacket(
-				Map.of(fieldName, text), Map.of(fieldName, true)));
+		Map<String, String> fieldsMap = LinkedHashMapBuilder.put(
+			htmlFieldName1, htmlText1
+		).put(
+			plainFieldName1, plainText1
+		).put(
+			htmlFieldName2, htmlText2
+		).put(
+			plainFieldName2, plainText2
+		).build();
 
-		Assert.assertEquals(
-			Map.of(fieldName, text), translatorPacket.getFieldsMap());
-
-		Assert.assertEquals(
-			Map.of("html", Collections.singletonList(text)), _texts);
-	}
-
-	@Test
-	public void testTranslateWithInterleavedHTMLAndPlainTextFields()
-		throws Exception {
-
-		Map<String, String> fieldsMap = new LinkedHashMap<>();
-		Map<String, Boolean> htmlMap = new LinkedHashMap<>();
-
-		List<String> htmlTexts = new ArrayList<>();
-		List<String> plainTexts = new ArrayList<>();
-
-		for (int i = 0; i < 4; i++) {
-			boolean html = false;
-
-			if ((i % 2) == 0) {
-				html = true;
-			}
-
-			String text = RandomTestUtil.randomString();
-
-			if (html) {
-				text = StringBundler.concat("<b>", text, "</b>");
-
-				htmlTexts.add(text);
-			}
-			else {
-				plainTexts.add(text);
-			}
-
-			String fieldName = RandomTestUtil.randomString();
-
-			fieldsMap.put(fieldName, text);
-			htmlMap.put(fieldName, html);
-		}
+		Map<String, Boolean> htmlMap = LinkedHashMapBuilder.put(
+			htmlFieldName1, true
+		).put(
+			plainFieldName1, false
+		).put(
+			htmlFieldName2, true
+		).put(
+			plainFieldName2, false
+		).build();
 
 		TranslatorPacket translatorPacket = _azureTranslator.translate(
 			_getTranslatorPacket(fieldsMap, htmlMap));
@@ -187,9 +164,9 @@ public class AzureTranslatorTest {
 
 		Assert.assertEquals(
 			HashMapBuilder.put(
-				"html", htmlTexts
+				"html", List.of(htmlText1, htmlText2)
 			).put(
-				"plain", plainTexts
+				"plain", List.of(plainText1, plainText2)
 			).build(),
 			_texts);
 
@@ -197,20 +174,7 @@ public class AzureTranslatorTest {
 	}
 
 	@Test
-	public void testTranslateWithoutFields() throws Exception {
-		TranslatorPacket translatorPacket = _azureTranslator.translate(
-			_getTranslatorPacket(
-				Collections.emptyMap(), Collections.emptyMap()));
-
-		Assert.assertEquals(
-			Collections.emptyMap(), translatorPacket.getFieldsMap());
-
-		Assert.assertEquals(Collections.emptyMap(), _texts);
-		Assert.assertEquals(Collections.emptyList(), _userAgents);
-	}
-
-	@Test
-	public void testTranslateWithoutHTMLFlags() throws Exception {
+	public void testTranslateWhenHTMLFlagsAreNull() throws Exception {
 		String htmlFieldName = RandomTestUtil.randomString();
 		String htmlText = StringBundler.concat(
 			"<p>", RandomTestUtil.randomString(), "</p>");
@@ -230,6 +194,39 @@ public class AzureTranslatorTest {
 
 		Assert.assertEquals(
 			Map.of("plain", List.of(htmlText, plainText)), _texts);
+	}
+
+	@Test
+	public void testTranslateWhenResponseCodeIsNotOK() throws Exception {
+		_responseCode = 500;
+
+		try {
+			_azureTranslator.translate(_getTranslatorPacket());
+
+			Assert.fail();
+		}
+		catch (PortalException portalException) {
+			Assert.assertEquals(
+				"Response code 500", portalException.getMessage());
+		}
+	}
+
+	@Test
+	public void testTranslateWhenUserAgentIsConfigured() throws Exception {
+		String userAgent = RandomTestUtil.randomString();
+
+		_setUpAzureTranslator(userAgent);
+
+		_azureTranslator.translate(_getTranslatorPacket());
+
+		Assert.assertEquals(Collections.singletonList(userAgent), _userAgents);
+	}
+
+	@Test
+	public void testTranslateWhenUserAgentIsNotConfigured() throws Exception {
+		_azureTranslator.translate(_getTranslatorPacket());
+
+		Assert.assertEquals(Collections.singletonList("Liferay"), _userAgents);
 	}
 
 	private TranslatorPacket _getTranslatorPacket() {
@@ -358,26 +355,21 @@ public class AzureTranslatorTest {
 				JSONArray requestJSONArray = _jsonFactoryImpl.createJSONArray(
 					body.getContent());
 
+				List<String> requestTexts = JSONUtil.toStringList(
+					requestJSONArray, "Text");
+
 				List<String> texts = _texts.computeIfAbsent(
 					HttpComponentsUtil.getParameter(
 						options.getLocation(), "textType", false),
 					textType -> new ArrayList<>());
 
-				JSONArray responseJSONArray =
-					_jsonFactoryImpl.createJSONArray();
+				texts.addAll(requestTexts);
 
-				for (int i = 0; i < requestJSONArray.length(); i++) {
-					JSONObject jsonObject = requestJSONArray.getJSONObject(i);
-
-					String text = jsonObject.getString("Text");
-
-					texts.add(text);
-
-					responseJSONArray.put(
-						JSONUtil.put(
-							"translations",
-							JSONUtil.put(JSONUtil.put("text", text))));
-				}
+				JSONArray responseJSONArray = JSONUtil.toJSONArray(
+					requestTexts,
+					text -> JSONUtil.put(
+						"translations",
+						JSONUtil.put(JSONUtil.put("text", text))));
 
 				return responseJSONArray.toString();
 			}
