@@ -9,6 +9,7 @@ const DISPLAY_PAGE_FIELD_NAMES = ['assetDisplayPageId', 'displayPageType'];
 
 export function getFormSnapshot(form, namespace, ignoredNames = []) {
 	const excludedNames = new Set([
+		`${namespace}availableLocales`,
 		`${namespace}formDate`,
 		`${namespace}languageId`,
 		...ignoredNames.map((name) => `${namespace}${name}`),
@@ -20,6 +21,8 @@ export function getFormSnapshot(form, namespace, ignoredNames = []) {
 		if (
 			element.name &&
 			element.name.startsWith(namespace) &&
+			!element.classList.contains('language-value') &&
+			!element.name.endsWith('_edited') &&
 			!excludedNames.has(element.name)
 		) {
 			values.set(element.name, (element.value ?? '').trim());
