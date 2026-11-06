@@ -5,7 +5,7 @@
 
 import {useCallback, useEffect, useRef} from 'react';
 
-const NO_IGNORED_NAMES = [];
+const DISPLAY_PAGE_FIELD_NAMES = ['assetDisplayPageId', 'displayPageType'];
 
 export function getFormSnapshot(form, namespace, ignoredNames = []) {
 	const excludedNames = new Set([
@@ -43,7 +43,7 @@ export function isFormSnapshotDifferent(snapshot1, snapshot2) {
 	return false;
 }
 
-export function useFormChanges(namespace, ignoredNames = NO_IGNORED_NAMES) {
+export function useFormChanges(namespace) {
 	const formChangesRef = useRef(null);
 
 	useEffect(() => {
@@ -53,7 +53,7 @@ export function useFormChanges(namespace, ignoredNames = NO_IGNORED_NAMES) {
 			return;
 		}
 
-		const formChanges = trackFormChanges(form, namespace, ignoredNames);
+		const formChanges = trackFormChanges(form, namespace);
 
 		formChangesRef.current = formChanges;
 
@@ -62,7 +62,7 @@ export function useFormChanges(namespace, ignoredNames = NO_IGNORED_NAMES) {
 
 			formChangesRef.current = null;
 		};
-	}, [ignoredNames, namespace]);
+	}, [namespace]);
 
 	const hasFormChanges = useCallback(
 		() => formChangesRef.current?.hasChanges() ?? true,
@@ -76,15 +76,16 @@ export function useFormChanges(namespace, ignoredNames = NO_IGNORED_NAMES) {
 	return {hasFormChanges, markFormSaved};
 }
 
-function trackFormChanges(form, namespace, ignoredNames) {
-	let savedSnapshot = getFormSnapshot(form, namespace, ignoredNames);
+function trackFormChanges(form, namespace) {
+	const getSnapshot = () =>
+		getFormSnapshot(form, namespace, DISPLAY_PAGE_FIELD_NAMES);
+
+	let savedSnapshot = getSnapshot();
 
 	const addRenderedFields = () => {
-		for (const [name, value] of getFormSnapshot(
-			form,
-			namespace,
-			ignoredNames
-		)) {
+		const snapshot = getSnapshot();
+
+		for (const [name, value] of snapshot) {
 			if (!savedSnapshot.has(name)) {
 				savedSnapshot.set(name, value);
 			}
@@ -104,13 +105,10 @@ function trackFormChanges(form, namespace, ignoredNames) {
 				addRenderedFields();
 			}
 
-			return isFormSnapshotDifferent(
-				getFormSnapshot(form, namespace, ignoredNames),
-				savedSnapshot
-			);
+			return isFormSnapshotDifferent(getSnapshot(), savedSnapshot);
 		},
 		markSaved() {
-			savedSnapshot = getFormSnapshot(form, namespace, ignoredNames);
+			savedSnapshot = getSnapshot();
 		},
 	};
 }

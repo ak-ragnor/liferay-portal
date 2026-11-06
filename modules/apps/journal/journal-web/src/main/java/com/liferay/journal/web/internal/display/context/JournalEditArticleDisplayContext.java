@@ -166,28 +166,7 @@ public class JournalEditArticleDisplayContext {
 			"newArticle",
 			(_article == null) || Validator.isNull(_article.getArticleId())
 		).put(
-			"previewURL",
-			() -> {
-				String getPagePreviewURL = HttpComponentsUtil.addParameters(
-					_themeDisplay.getPortalURL() + _themeDisplay.getPathMain() +
-						"/portal/get_page_preview",
-					"p_l_mode", Constants.PREVIEW, "className",
-					JournalArticle.class.getName());
-
-				if (_article != null) {
-					getPagePreviewURL = HttpComponentsUtil.addParameters(
-						getPagePreviewURL, "classPK",
-						_article.getResourcePrimKey(), "version",
-						_article.getVersion());
-				}
-
-				if (Validator.isNotNull(_themeDisplay.getDoAsUserId())) {
-					getPagePreviewURL = PortalUtil.addPreservedParameters(
-						_themeDisplay, getPagePreviewURL, false, true);
-				}
-
-				return getPagePreviewURL;
-			}
+			"previewURL", _getPagePreviewURL()
 		).put(
 			"saveAsDraftURL",
 			PortletURLBuilder.createActionURL(
@@ -1181,6 +1160,19 @@ public class JournalEditArticleDisplayContext {
 		return HashMapBuilder.<String, Object>put(
 			"assetDisplayPageId", _getAssetDisplayPageId()
 		).put(
+			"assetDisplayPagePlid",
+			() -> {
+				LayoutPageTemplateEntry layoutPageTemplateEntry =
+					LayoutPageTemplateEntryLocalServiceUtil.
+						fetchLayoutPageTemplateEntry(_getAssetDisplayPageId());
+
+				if (layoutPageTemplateEntry != null) {
+					return layoutPageTemplateEntry.getPlid();
+				}
+
+				return null;
+			}
+		).put(
 			"assetDisplayPageType", _getAssetDisplayPageType()
 		).put(
 			"defaultDisplayPageName",
@@ -1195,10 +1187,24 @@ public class JournalEditArticleDisplayContext {
 				return null;
 			}
 		).put(
+			"defaultDisplayPagePlid",
+			() -> {
+				LayoutPageTemplateEntry layoutPageTemplateEntry =
+					_getDefaultLayoutPageTemplateEntry();
+
+				if (layoutPageTemplateEntry != null) {
+					return layoutPageTemplateEntry.getPlid();
+				}
+
+				return null;
+			}
+		).put(
 			"layoutUuid", _getLayoutUuid()
 		).put(
 			"newArticle",
 			(_article == null) || Validator.isNull(_article.getArticleId())
+		).put(
+			"previewURL", _getPagePreviewURL()
 		).put(
 			"saveAsDraftURL",
 			PortletURLBuilder.createActionURL(
@@ -1652,6 +1658,27 @@ public class JournalEditArticleDisplayContext {
 		}
 
 		return StringUtil.merge(displayLocaleNames, StringPool.COMMA_AND_SPACE);
+	}
+
+	private String _getPagePreviewURL() {
+		String pagePreviewURL = HttpComponentsUtil.addParameters(
+			_themeDisplay.getPortalURL() + _themeDisplay.getPathMain() +
+				"/portal/get_page_preview",
+			"p_l_mode", Constants.PREVIEW, "className",
+			JournalArticle.class.getName());
+
+		if (_article != null) {
+			pagePreviewURL = HttpComponentsUtil.addParameters(
+				pagePreviewURL, "classPK", _article.getResourcePrimKey(),
+				"version", _article.getVersion());
+		}
+
+		if (Validator.isNotNull(_themeDisplay.getDoAsUserId())) {
+			pagePreviewURL = PortalUtil.addPreservedParameters(
+				_themeDisplay, pagePreviewURL, false, true);
+		}
+
+		return pagePreviewURL;
 	}
 
 	private String _getSelectAssetDisplayPageURL(

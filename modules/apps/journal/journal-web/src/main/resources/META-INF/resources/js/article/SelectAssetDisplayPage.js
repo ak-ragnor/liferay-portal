@@ -22,8 +22,6 @@ function getLabel(displayPageType) {
 	}
 }
 
-const DISPLAY_PAGE_FIELD_NAMES = ['assetDisplayPageId', 'displayPageType'];
-
 const DISPLAY_PAGE_TYPE = {
 	default: 1,
 	none: 0,
@@ -32,11 +30,14 @@ const DISPLAY_PAGE_TYPE = {
 
 export default function SelectAssetDisplayPage({
 	assetDisplayPageId,
+	assetDisplayPagePlid,
 	assetDisplayPageType,
 	defaultDisplayPageName,
+	defaultDisplayPagePlid,
 	layoutUuid,
 	newArticle,
 	portletNamespace: namespace,
+	previewURL,
 	saveAsDraftURL,
 	selectAssetDisplayPageEventName,
 	selectAssetDisplayPageURL,
@@ -52,6 +53,7 @@ export default function SelectAssetDisplayPage({
 					assetDisplayPageId,
 					layoutUuid,
 					name: specificAssetDisplayPageName,
+					plid: assetDisplayPagePlid,
 				};
 			}
 
@@ -59,10 +61,7 @@ export default function SelectAssetDisplayPage({
 		}
 	);
 
-	const {hasFormChanges, markFormSaved} = useFormChanges(
-		namespace,
-		DISPLAY_PAGE_FIELD_NAMES
-	);
+	const {hasFormChanges, markFormSaved} = useFormChanges(namespace);
 
 	const ITEMS = [
 		{
@@ -165,7 +164,28 @@ export default function SelectAssetDisplayPage({
 							DISPLAY_PAGE_TYPE.default &&
 							!defaultDisplayPageName)
 					}
-					getPreviewURL={({previewURL}) => previewURL}
+					getPreviewURL={(response) => {
+						let plid = assetDisplayPageSelected?.plid;
+
+						if (
+							selectedDisplayPageType ===
+							DISPLAY_PAGE_TYPE.default
+						) {
+							plid = defaultDisplayPagePlid;
+						}
+
+						if (!plid) {
+							return response.previewURL;
+						}
+
+						const url = new URL(previewURL);
+
+						url.searchParams.set('classPK', response.classPK);
+						url.searchParams.set('selPlid', plid);
+						url.searchParams.set('version', response.version);
+
+						return url;
+					}}
 					hasFormChanges={hasFormChanges}
 					markFormSaved={markFormSaved}
 					namespace={namespace}
