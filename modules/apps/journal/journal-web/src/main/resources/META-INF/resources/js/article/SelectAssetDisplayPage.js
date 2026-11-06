@@ -6,6 +6,7 @@
 import ClayForm, {ClayInput, ClaySelectWithOption} from '@clayui/form';
 import React, {useEffect, useState} from 'react';
 
+import {useFormChanges} from '../formSnapshot';
 import AssetDisplayPageSelector from './AssetDisplayPageSelector';
 import PreviewButton from './PreviewButton';
 
@@ -20,6 +21,8 @@ function getLabel(displayPageType) {
 		return Liferay.Language.get('none');
 	}
 }
+
+const DISPLAY_PAGE_FIELD_NAMES = ['assetDisplayPageId', 'displayPageType'];
 
 const DISPLAY_PAGE_TYPE = {
 	default: 1,
@@ -54,6 +57,11 @@ export default function SelectAssetDisplayPage({
 
 			return null;
 		}
+	);
+
+	const {hasFormChanges, markFormSaved} = useFormChanges(
+		namespace,
+		DISPLAY_PAGE_FIELD_NAMES
 	);
 
 	const ITEMS = [
@@ -158,6 +166,8 @@ export default function SelectAssetDisplayPage({
 							!defaultDisplayPageName)
 					}
 					getPreviewURL={({previewURL}) => previewURL}
+					hasFormChanges={hasFormChanges}
+					markFormSaved={markFormSaved}
 					namespace={namespace}
 					newArticle={newArticle}
 					saveAsDraftURL={saveAsDraftURL}

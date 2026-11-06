@@ -3,10 +3,15 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later OR LicenseRef-Liferay-DXP-EULA-2.0.0-2023-06
  */
 
-export function getFormSnapshot(form, namespace) {
+import {useCallback, useEffect, useRef} from 'react';
+
+const NO_IGNORED_NAMES = [];
+
+export function getFormSnapshot(form, namespace, ignoredNames = []) {
 	const excludedNames = new Set([
 		`${namespace}formDate`,
 		`${namespace}languageId`,
+		...ignoredNames.map((name) => `${namespace}${name}`),
 	]);
 
 	const values = new Map();
@@ -36,4 +41,76 @@ export function isFormSnapshotDifferent(snapshot1, snapshot2) {
 	}
 
 	return false;
+}
+
+export function useFormChanges(namespace, ignoredNames = NO_IGNORED_NAMES) {
+	const formChangesRef = useRef(null);
+
+	useEffect(() => {
+		const form = document.getElementById(`${namespace}fm1`);
+
+		if (!form) {
+			return;
+		}
+
+		const formChanges = trackFormChanges(form, namespace, ignoredNames);
+
+		formChangesRef.current = formChanges;
+
+		return () => {
+			formChanges.detach();
+
+			formChangesRef.current = null;
+		};
+	}, [ignoredNames, namespace]);
+
+	const hasFormChanges = useCallback(
+		() => formChangesRef.current?.hasChanges() ?? true,
+		[]
+	);
+
+	const markFormSaved = useCallback(() => {
+		formChangesRef.current?.markSaved();
+	}, []);
+
+	return {hasFormChanges, markFormSaved};
+}
+
+function trackFormChanges(form, namespace, ignoredNames) {
+	let savedSnapshot = getFormSnapshot(form, namespace, ignoredNames);
+
+	const addRenderedFields = () => {
+		for (const [name, value] of getFormSnapshot(
+			form,
+			namespace,
+			ignoredNames
+		)) {
+			if (!savedSnapshot.has(name)) {
+				savedSnapshot.set(name, value);
+			}
+		}
+	};
+
+	const mutationObserver = new MutationObserver(addRenderedFields);
+
+	mutationObserver.observe(form, {childList: true, subtree: true});
+
+	return {
+		detach() {
+			mutationObserver.disconnect();
+		},
+		hasChanges() {
+			if (mutationObserver.takeRecords().length) {
+				addRenderedFields();
+			}
+
+			return isFormSnapshotDifferent(
+				getFormSnapshot(form, namespace, ignoredNames),
+				savedSnapshot
+			);
+		},
+		markSaved() {
+			savedSnapshot = getFormSnapshot(form, namespace, ignoredNames);
+		},
+	};
 }
