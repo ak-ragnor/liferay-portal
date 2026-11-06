@@ -148,24 +148,8 @@ public class SaveAsDraftArticleMVCActionCommandTest {
 			_group.getGroupId(),
 			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
 
-		MockLiferayPortletActionRequest mockLiferayPortletActionRequest =
-			_getMockLiferayPortletActionRequest(journalArticle);
-
-		mockLiferayPortletActionRequest.addParameter(
-			Constants.CMD, Constants.PREVIEW);
-
-		MockLiferayPortletActionResponse mockLiferayPortletActionResponse =
-			new MockLiferayPortletActionResponse();
-
-		_mvcActionCommand.processAction(
-			mockLiferayPortletActionRequest, mockLiferayPortletActionResponse);
-
-		MockHttpServletResponse mockHttpServletResponse =
-			(MockHttpServletResponse)
-				mockLiferayPortletActionResponse.getHttpServletResponse();
-
-		JSONObject jsonObject = JSONFactoryUtil.createJSONObject(
-			mockHttpServletResponse.getContentAsString());
+		JSONObject jsonObject = _processPreviewAction(
+			_getMockLiferayPortletActionRequest(journalArticle));
 
 		Assert.assertEquals(
 			journalArticle.getVersion(), jsonObject.getDouble("version"), 0);
@@ -233,6 +217,27 @@ public class SaveAsDraftArticleMVCActionCommandTest {
 		themeDisplay.setUser(TestPropsValues.getUser());
 
 		return themeDisplay;
+	}
+
+	private JSONObject _processPreviewAction(
+			MockLiferayPortletActionRequest mockLiferayPortletActionRequest)
+		throws Exception {
+
+		mockLiferayPortletActionRequest.addParameter(
+			Constants.CMD, Constants.PREVIEW);
+
+		MockLiferayPortletActionResponse mockLiferayPortletActionResponse =
+			new MockLiferayPortletActionResponse();
+
+		_mvcActionCommand.processAction(
+			mockLiferayPortletActionRequest, mockLiferayPortletActionResponse);
+
+		MockHttpServletResponse mockHttpServletResponse =
+			(MockHttpServletResponse)
+				mockLiferayPortletActionResponse.getHttpServletResponse();
+
+		return JSONFactoryUtil.createJSONObject(
+			mockHttpServletResponse.getContentAsString());
 	}
 
 	private void _setUpUploadPortletRequest(

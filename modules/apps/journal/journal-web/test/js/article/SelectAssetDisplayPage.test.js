@@ -27,11 +27,14 @@ const DISPLAY_PAGE_TYPE_SPECIFIC = 2;
 
 const DEFAULT_PROPS = {
 	assetDisplayPageId: '',
+	assetDisplayPagePlid: null,
 	assetDisplayPageType: DISPLAY_PAGE_TYPE_NONE,
 	defaultDisplayPageName: '',
+	defaultDisplayPagePlid: null,
 	layoutUuid: '',
 	newArticle: true,
 	portletNamespace: 'namespace',
+	previewURL: 'http://localhost/c/portal/get_page_preview?p_l_mode=preview',
 	saveAsDraftURL: 'http://localhost/save-as-draft',
 	selectAssetDisplayPageEventName: 'selectAssetDisplayPage',
 	selectAssetDisplayPageURL: 'http://localhost/select-asset-display-page',
@@ -69,7 +72,11 @@ const renderComponentInForm = async (props) => {
 	await act(() => Promise.resolve());
 };
 
-const getCmd = () => {
+const previewAndGetCmd = async () => {
+	await userEvent.click(screen.getByRole('button', {name: /preview/}));
+
+	await waitFor(() => expect(openModal).toHaveBeenCalled());
+
 	const [[, {body}]] = fetch.mock.calls;
 
 	return body.get(`${DEFAULT_PROPS.portletNamespace}cmd`);
@@ -144,19 +151,15 @@ describe('SelectAssetDisplayPage', () => {
 				.getElementById(`${DEFAULT_PROPS.portletNamespace}fm1`)
 				.appendChild(input);
 
-			await userEvent.click(
-				screen.getByRole('button', {name: /preview/})
-			);
-
-			await waitFor(() => expect(openModal).toHaveBeenCalled());
-
-			expect(getCmd()).toBe('preview');
+			expect(await previewAndGetCmd()).toBe('preview');
 		});
 
-		it('previews the saved version when only the display page changes', async () => {
+		it('previews the saved version with the selected display page when only the display page changes', async () => {
 			await renderComponentInForm({
 				assetDisplayPageId: '1',
+				assetDisplayPagePlid: 10,
 				assetDisplayPageType: DISPLAY_PAGE_TYPE_SPECIFIC,
+				defaultDisplayPagePlid: 20,
 				specificAssetDisplayPageName: 'Specific Display Page',
 			});
 
@@ -165,13 +168,13 @@ describe('SelectAssetDisplayPage', () => {
 				{target: {value: String(DISPLAY_PAGE_TYPE_DEFAULT)}}
 			);
 
-			await userEvent.click(
-				screen.getByRole('button', {name: /preview/})
-			);
+			expect(await previewAndGetCmd()).toBe('preview');
 
-			await waitFor(() => expect(openModal).toHaveBeenCalled());
+			const [[{url}]] = openModal.mock.calls;
 
-			expect(getCmd()).toBe('preview');
+			expect(url.searchParams.get('classPK')).toBe('1');
+			expect(url.searchParams.get('selPlid')).toBe('20');
+			expect(url.searchParams.get('version')).toBe('1.1');
 		});
 
 		it('saves a draft before previewing edits made while the display page type was none', async () => {
@@ -189,13 +192,7 @@ describe('SelectAssetDisplayPage', () => {
 				target: {value: String(DISPLAY_PAGE_TYPE_DEFAULT)},
 			});
 
-			await userEvent.click(
-				screen.getByRole('button', {name: /preview/})
-			);
-
-			await waitFor(() => expect(openModal).toHaveBeenCalled());
-
-			expect(getCmd()).toBe('update');
+			expect(await previewAndGetCmd()).toBe('update');
 		});
 	});
 });
