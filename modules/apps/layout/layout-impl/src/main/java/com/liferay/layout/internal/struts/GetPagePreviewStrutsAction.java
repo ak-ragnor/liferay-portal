@@ -233,7 +233,7 @@ public class GetPagePreviewStrutsAction implements StrutsAction {
 
 		LayoutDisplayPageObjectProvider<?> layoutDisplayPageObjectProvider =
 			layoutDisplayPageProvider.getLayoutDisplayPageObjectProvider(
-				new InfoItemReference(className, classPK));
+				new InfoItemReference(className, classPKInfoItemIdentifier));
 
 		if (layoutDisplayPageObjectProvider != null) {
 			httpServletRequest.setAttribute(
