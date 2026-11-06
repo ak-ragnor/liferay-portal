@@ -2215,7 +2215,7 @@ public class LayoutsImporterTest {
 			_portletPreferencesLocalService.dynamicQuery();
 
 		dynamicQuery.add(
-			RestrictionsFactoryUtil.like("portletId", "%[$NAMESPACE$]%"));
+			RestrictionsFactoryUtil.like("portletId", "%$NAMESPACE$%"));
 
 		return _portletPreferencesLocalService.dynamicQueryCount(dynamicQuery);
 	}
