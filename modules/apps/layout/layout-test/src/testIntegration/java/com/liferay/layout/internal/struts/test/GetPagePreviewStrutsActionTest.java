@@ -12,6 +12,11 @@ import com.liferay.client.extension.service.ClientExtensionEntryLocalService;
 import com.liferay.client.extension.service.ClientExtensionEntryRelLocalService;
 import com.liferay.exportimport.kernel.service.StagingLocalService;
 import com.liferay.fragment.model.FragmentEntryLink;
+import com.liferay.journal.constants.JournalFolderConstants;
+import com.liferay.journal.model.JournalArticle;
+import com.liferay.journal.test.util.JournalTestUtil;
+import com.liferay.layout.display.page.LayoutDisplayPageObjectProvider;
+import com.liferay.layout.display.page.constants.LayoutDisplayPageWebKeys;
 import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.osgi.service.tracker.collections.list.ServiceTrackerList;
 import com.liferay.osgi.service.tracker.collections.list.ServiceTrackerListFactory;
@@ -111,6 +116,44 @@ public class GetPagePreviewStrutsActionTest {
 		_addLayout(_group, false, LayoutConstants.TYPE_ASSET_DISPLAY);
 
 		_assertContainsContent();
+	}
+
+	@Test
+	public void testGetPagePreviewAssetDisplayPageWithVersion()
+		throws Exception {
+
+		_addLayout(_group, false, LayoutConstants.TYPE_ASSET_DISPLAY);
+
+		JournalArticle journalArticle = JournalTestUtil.addArticle(
+			_group.getGroupId(),
+			JournalFolderConstants.DEFAULT_PARENT_FOLDER_ID);
+
+		JournalArticle draftJournalArticle = JournalTestUtil.updateArticle(
+			journalArticle, RandomTestUtil.randomString(),
+			journalArticle.getContent(), true, false, _serviceContext);
+
+		MockHttpServletRequest mockHttpServletRequest =
+			_getMockHttpServletRequest();
+
+		mockHttpServletRequest.addParameter(
+			"className", JournalArticle.class.getName());
+		mockHttpServletRequest.addParameter(
+			"classPK", String.valueOf(journalArticle.getResourcePrimKey()));
+		mockHttpServletRequest.addParameter(
+			"version", String.valueOf(draftJournalArticle.getVersion()));
+
+		_getPagePreviewStrutsAction.execute(
+			mockHttpServletRequest, new MockHttpServletResponse());
+
+		LayoutDisplayPageObjectProvider<?> layoutDisplayPageObjectProvider =
+			(LayoutDisplayPageObjectProvider<?>)
+				mockHttpServletRequest.getAttribute(
+					LayoutDisplayPageWebKeys.
+						LAYOUT_DISPLAY_PAGE_OBJECT_PROVIDER);
+
+		Assert.assertEquals(
+			draftJournalArticle,
+			layoutDisplayPageObjectProvider.getDisplayObject());
 	}
 
 	@Test
@@ -353,27 +396,7 @@ public class GetPagePreviewStrutsActionTest {
 		throws Exception {
 
 		MockHttpServletRequest mockHttpServletRequest =
-			new MockHttpServletRequest(
-				ServletContextPool.get(StringPool.BLANK));
-
-		mockHttpServletRequest.addParameter(
-			"segmentsExperienceId",
-			String.valueOf(
-				_segmentsExperienceLocalService.
-					fetchDefaultSegmentsExperienceId(
-						_fragmentEntryLink.getPlid())));
-		mockHttpServletRequest.addParameter(
-			"selPlid", String.valueOf(_fragmentEntryLink.getPlid()));
-		mockHttpServletRequest.setAttribute(
-			WebKeys.CURRENT_URL, RandomTestUtil.randomString());
-		mockHttpServletRequest.setAttribute(
-			WebKeys.THEME_DISPLAY, _themeDisplay);
-		mockHttpServletRequest.setMethod(HttpMethods.GET);
-		mockHttpServletRequest.setServerName("www.liferay.com");
-
-		_serviceContext.setRequest(mockHttpServletRequest);
-
-		_themeDisplay.setRequest(mockHttpServletRequest);
+			_getMockHttpServletRequest();
 
 		MockHttpServletResponse mockHttpServletResponse =
 			new MockHttpServletResponse();
@@ -397,6 +420,33 @@ public class GetPagePreviewStrutsActionTest {
 			content,
 			CoreMatchers.containsString(
 				"/o/" + theme.getServletContextName() + "/css/main."));
+	}
+
+	private MockHttpServletRequest _getMockHttpServletRequest() {
+		MockHttpServletRequest mockHttpServletRequest =
+			new MockHttpServletRequest(
+				ServletContextPool.get(StringPool.BLANK));
+
+		mockHttpServletRequest.addParameter(
+			"segmentsExperienceId",
+			String.valueOf(
+				_segmentsExperienceLocalService.
+					fetchDefaultSegmentsExperienceId(
+						_fragmentEntryLink.getPlid())));
+		mockHttpServletRequest.addParameter(
+			"selPlid", String.valueOf(_fragmentEntryLink.getPlid()));
+		mockHttpServletRequest.setAttribute(
+			WebKeys.CURRENT_URL, RandomTestUtil.randomString());
+		mockHttpServletRequest.setAttribute(
+			WebKeys.THEME_DISPLAY, _themeDisplay);
+		mockHttpServletRequest.setMethod(HttpMethods.GET);
+		mockHttpServletRequest.setServerName("www.liferay.com");
+
+		_serviceContext.setRequest(mockHttpServletRequest);
+
+		_themeDisplay.setRequest(mockHttpServletRequest);
+
+		return mockHttpServletRequest;
 	}
 
 	private void _processClientExtensionServicePreAction(
