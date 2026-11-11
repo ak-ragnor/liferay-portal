@@ -76,6 +76,17 @@ public class DLURLHelperImpl implements DLURLHelper {
 		FileEntry fileEntry, FileVersion fileVersion, ThemeDisplay themeDisplay,
 		String queryString, boolean appendVersion, boolean absoluteURL) {
 
+		return getDownloadURL(
+			fileEntry, fileVersion, themeDisplay, queryString, appendVersion,
+			false, absoluteURL);
+	}
+
+	@Override
+	public String getDownloadURL(
+		FileEntry fileEntry, FileVersion fileVersion, ThemeDisplay themeDisplay,
+		String queryString, boolean appendVersion, boolean appendModifiedDate,
+		boolean absoluteURL) {
+
 		String url = _getDLFileVersionURLProviderURL(
 			fileVersion, themeDisplay, DLFileVersionURLProvider.Type.DOWNLOAD);
 
@@ -83,11 +94,18 @@ public class DLURLHelperImpl implements DLURLHelper {
 			return url;
 		}
 
-		return HttpComponentsUtil.addParameter(
-			getPreviewURL(
-				fileEntry, fileVersion, themeDisplay, queryString,
-				appendVersion, absoluteURL),
-			"download", true);
+		String previewURL = getPreviewURL(
+			fileEntry, fileVersion, themeDisplay, queryString, appendVersion,
+			absoluteURL);
+
+		if (appendModifiedDate && !appendVersion) {
+			Date modifiedDate = fileEntry.getModifiedDate();
+
+			previewURL = HttpComponentsUtil.addParameter(
+				previewURL, "modified", modifiedDate.getTime());
+		}
+
+		return HttpComponentsUtil.addParameter(previewURL, "download", true);
 	}
 
 	@Override
