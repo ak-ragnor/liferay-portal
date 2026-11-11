@@ -91,6 +91,7 @@ import com.liferay.journal.service.base.JournalArticleLocalServiceBaseImpl;
 import com.liferay.journal.service.persistence.JournalArticleLocalizationPersistence;
 import com.liferay.journal.service.persistence.JournalArticleResourcePersistence;
 import com.liferay.journal.service.persistence.JournalFolderPersistence;
+import com.liferay.journal.util.JournalContent;
 import com.liferay.journal.util.JournalConverter;
 import com.liferay.journal.util.JournalDefaultTemplateProvider;
 import com.liferay.journal.util.JournalHelper;
@@ -134,6 +135,7 @@ import com.liferay.portal.kernel.model.SystemEventConstants;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.model.WorkflowDefinitionLink;
 import com.liferay.portal.kernel.module.configuration.ConfigurationException;
+import com.liferay.portal.kernel.module.service.Snapshot;
 import com.liferay.portal.kernel.notifications.UserNotificationDefinition;
 import com.liferay.portal.kernel.portlet.PortletProvider;
 import com.liferay.portal.kernel.portlet.PortletProviderUtil;
@@ -4057,7 +4059,18 @@ public class JournalArticleLocalServiceImpl
 				article.getCompanyId(), article.getId(), languageId);
 		}
 
-		_removeArticleLocale(article, languageId);
+		boolean articleLocale = _hasArticleLocale(article, languageId);
+
+		if (articleLocale) {
+			_removeArticleLocale(article, languageId);
+		}
+
+		if (articleLocale || (journalArticleLocalization != null)) {
+			JournalContent journalContent = _journalContentSnapshot.get();
+
+			journalContent.clearCache(
+				article.getGroupId(), article.getArticleId());
+		}
 
 		FriendlyURLEntry friendlyURLEntry =
 			friendlyURLEntryLocalService.fetchFriendlyURLEntry(
@@ -8159,6 +8172,16 @@ public class JournalArticleLocalServiceImpl
 			urlTitle);
 	}
 
+	private boolean _hasArticleLocale(JournalArticle article, String languageId)
+		throws PortalException {
+
+		DDMFormValues ddmFormValues = article.getDDMFormValues();
+
+		Set<Locale> availableLocales = ddmFormValues.getAvailableLocales();
+
+		return availableLocales.contains(LocaleUtil.fromLanguageId(languageId));
+	}
+
 	private boolean _isEmpty(
 		LocalizedValue localizedValue, Predicate<String> emptyValuePredicate) {
 
@@ -8221,10 +8244,6 @@ public class JournalArticleLocalServiceImpl
 		Set<Locale> availableLocales = ddmFormValues.getAvailableLocales();
 
 		Locale locale = LocaleUtil.fromLanguageId(languageId);
-
-		if (!availableLocales.contains(locale)) {
-			return;
-		}
 
 		DDMStructure ddmStructure = article.getDDMStructure();
 
@@ -8459,6 +8478,10 @@ public class JournalArticleLocalServiceImpl
 
 	private static final Log _log = LogFactoryUtil.getLog(
 		JournalArticleLocalServiceImpl.class);
+
+	private static final Snapshot<JournalContent> _journalContentSnapshot =
+		new Snapshot<>(
+			JournalArticleLocalServiceImpl.class, JournalContent.class);
 
 	@Reference
 	private AssetCategoryLocalService _assetCategoryLocalService;
