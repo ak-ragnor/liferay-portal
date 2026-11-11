@@ -98,7 +98,6 @@ public class DLURLHelperTest {
 
 		Assert.assertNotEquals(downloadURL, updatedDownloadURL);
 		Assert.assertTrue(
-			updatedDownloadURL,
 			updatedDownloadURL.contains("modified=" + modifiedDate.getTime()));
 	}
 
