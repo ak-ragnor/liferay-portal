@@ -33,6 +33,8 @@ import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
 import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
 import com.liferay.portal.util.PortalImpl;
 
+import java.util.Date;
+
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -59,6 +61,45 @@ public class DLURLHelperTest {
 	public void setUp() throws Exception {
 		_group = GroupTestUtil.addGroup();
 		_user = UserTestUtil.addUser();
+	}
+
+	@Test
+	public void testGetDownloadURLAppendModifiedDate() throws Exception {
+		ServiceContext serviceContext =
+			ServiceContextTestUtil.getServiceContext(
+				_group.getGroupId(), _user.getUserId());
+		String urlTitle = RandomTestUtil.randomString();
+
+		FileEntry fileEntry = _dlAppLocalService.addFileEntry(
+			null, _user.getUserId(), _group.getGroupId(),
+			DLFolderConstants.DEFAULT_PARENT_FOLDER_ID,
+			RandomTestUtil.randomString(),
+			ContentTypes.APPLICATION_OCTET_STREAM,
+			RandomTestUtil.randomString(), urlTitle,
+			RandomTestUtil.randomString(), RandomTestUtil.randomString(),
+			(byte[])null, null, null, null, serviceContext);
+
+		String downloadURL = _dlURLHelper.getDownloadURL(
+			fileEntry, fileEntry.getFileVersion(), _getThemeDisplay(),
+			StringPool.BLANK, false, true, false);
+
+		fileEntry = _dlAppLocalService.updateFileEntry(
+			_user.getUserId(), fileEntry.getFileEntryId(),
+			RandomTestUtil.randomString(), ContentTypes.TEXT_PLAIN,
+			RandomTestUtil.randomString(), urlTitle, StringPool.BLANK, null,
+			DLVersionNumberIncrease.MAJOR, (byte[])null, null, null, null,
+			serviceContext);
+
+		String updatedDownloadURL = _dlURLHelper.getDownloadURL(
+			fileEntry, fileEntry.getFileVersion(), _getThemeDisplay(),
+			StringPool.BLANK, false, true, false);
+
+		Date modifiedDate = fileEntry.getModifiedDate();
+
+		Assert.assertNotEquals(downloadURL, updatedDownloadURL);
+		Assert.assertTrue(
+			updatedDownloadURL,
+			updatedDownloadURL.contains("modified=" + modifiedDate.getTime()));
 	}
 
 	@Test
