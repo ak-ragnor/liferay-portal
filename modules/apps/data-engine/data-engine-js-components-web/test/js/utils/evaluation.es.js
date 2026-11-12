@@ -83,6 +83,51 @@ describe('evaluation', () => {
 
 			themeDisplay = originalThemeDisplay;
 		});
+
+		it('evaluates every form when several forms evaluate at the same time', async () => {
+			const originalThemeDisplay = themeDisplay;
+
+			themeDisplay = {
+				...originalThemeDisplay,
+				getSiteGroupId: () => '20126',
+			};
+
+			jest.useFakeTimers();
+
+			fetch.mockResponseOnce(JSON.stringify([]));
+			fetch.mockResponseOnce(JSON.stringify([]));
+
+			const containerIds = [
+				'_portletNamespace_dataEngineLayoutRenderer1',
+				'_portletNamespace_dataEngineLayoutRenderer2',
+			];
+
+			const evaluations = containerIds.map((containerId) =>
+				evaluate(null, {
+					containerId,
+					defaultLanguageId: 'en_US',
+					editingLanguageId: 'en_US',
+					pages: [],
+					portletNamespace: '_portletNamespace_',
+				})
+			);
+
+			jest.runAllTimers();
+
+			expect(
+				fetch.mock.calls.map(
+					([, {body}]) =>
+						JSON.parse(body.get('serializedFormContext'))
+							.containerId
+				)
+			).toEqual(containerIds);
+
+			await Promise.all(evaluations);
+
+			jest.useRealTimers();
+
+			themeDisplay = originalThemeDisplay;
+		});
 	});
 
 	describe('mergePages', () => {
