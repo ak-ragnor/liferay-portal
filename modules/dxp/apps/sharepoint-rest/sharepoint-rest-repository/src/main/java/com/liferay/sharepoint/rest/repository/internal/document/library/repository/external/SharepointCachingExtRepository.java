@@ -16,6 +16,7 @@ import com.liferay.document.library.repository.external.ExtRepositoryObjectType;
 import com.liferay.document.library.repository.external.ExtRepositorySearchResult;
 import com.liferay.document.library.repository.external.search.ExtRepositoryQueryMapper;
 import com.liferay.petra.lang.CentralizedThreadLocal;
+import com.liferay.petra.string.CharPool;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.search.Query;
 import com.liferay.portal.kernel.search.SearchContext;
@@ -349,20 +350,33 @@ public class SharepointCachingExtRepository implements ExtRepository {
 		Map<String, ExtRepositoryFolder> extRepositoryParentFolderCache =
 			_extRepositoryParentFolderCache.get();
 
+		String parentFolderKey = _getParentFolderKey(
+			extRepositoryObject.getExtRepositoryModelKey());
+
 		ExtRepositoryFolder extRepositoryParentFolder =
-			extRepositoryParentFolderCache.get(
-				extRepositoryObject.getExtRepositoryModelKey());
+			extRepositoryParentFolderCache.get(parentFolderKey);
 
 		if (extRepositoryParentFolder != null) {
 			return extRepositoryParentFolder;
 		}
 
-		extRepositoryParentFolder = _extRepository.getExtRepositoryParentFolder(
-			extRepositoryObject);
+		if (!parentFolderKey.equals(_extRepository.getRootFolderKey())) {
+			Map<String, ExtRepositoryObject> extRepositoryObjectCache =
+				_extRepositoryObjectCache.get();
+
+			extRepositoryParentFolder =
+				(ExtRepositoryFolder)extRepositoryObjectCache.get(
+					parentFolderKey);
+		}
+
+		if (extRepositoryParentFolder == null) {
+			extRepositoryParentFolder =
+				_extRepository.getExtRepositoryParentFolder(
+					extRepositoryObject);
+		}
 
 		extRepositoryParentFolderCache.put(
-			extRepositoryObject.getExtRepositoryModelKey(),
-			extRepositoryParentFolder);
+			parentFolderKey, extRepositoryParentFolder);
 
 		return extRepositoryParentFolder;
 	}
@@ -476,6 +490,16 @@ public class SharepointCachingExtRepository implements ExtRepository {
 		extRepositoryFileVersionCache.remove(extRepositoryFileEntryKey);
 
 		return extRepositoryFileEntry;
+	}
+
+	private String _getParentFolderKey(String extRepositoryModelKey) {
+		int index = extRepositoryModelKey.lastIndexOf(CharPool.SLASH);
+
+		if (index == -1) {
+			return extRepositoryModelKey;
+		}
+
+		return extRepositoryModelKey.substring(0, index);
 	}
 
 	private static final ThreadLocal
