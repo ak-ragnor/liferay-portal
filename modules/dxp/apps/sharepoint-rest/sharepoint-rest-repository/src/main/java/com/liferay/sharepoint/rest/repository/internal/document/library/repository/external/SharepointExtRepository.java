@@ -286,10 +286,17 @@ public class SharepointExtRepository implements ExtRepository {
 		List<ExtRepositoryFileVersion> extRepositoryFileVersions =
 			getExtRepositoryFileVersions(extRepositoryFileEntry);
 
+		String extRepositoryFileVersionKey = StringBundler.concat(
+			extRepositoryFileEntry.getExtRepositoryModelKey(), StringPool.COLON,
+			version);
+
 		for (ExtRepositoryFileVersion extRepositoryFileVersion :
 				extRepositoryFileVersions) {
 
-			if (version.equals(extRepositoryFileVersion.getVersion())) {
+			if (extRepositoryFileVersionKey.equals(
+					extRepositoryFileVersion.getExtRepositoryModelKey()) ||
+				version.equals(extRepositoryFileVersion.getVersion())) {
+
 				return extRepositoryFileVersion;
 			}
 		}
