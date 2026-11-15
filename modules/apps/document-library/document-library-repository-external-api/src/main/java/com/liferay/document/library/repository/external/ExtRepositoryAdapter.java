@@ -22,7 +22,6 @@ import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.lang.CentralizedThreadLocal;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
-import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.exception.NoSuchRepositoryEntryException;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.SystemException;
@@ -550,22 +549,8 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 		OrderByComparator<?> orderByComparator) {
 
 		try {
-			String extRepositoryFolderKey = getExtRepositoryObjectKey(folderId);
-
-			List<ExtRepositoryObjectAdapter<?>> extRepositoryObjectAdapters =
-				_toExtRepositoryObjectAdapters(
-					ExtRepositoryObjectAdapterType.OBJECT,
-					_extRepository.getExtRepositoryObjects(
-						ExtRepositoryObjectType.OBJECT,
-						extRepositoryFolderKey));
-
-			List<Object> foldersAndFileEntries = _sublist(
-				extRepositoryObjectAdapters, start, end,
-				(OrderByComparator<Object>)orderByComparator);
-
-			_checkAssetEntries(foldersAndFileEntries);
-
-			return foldersAndFileEntries;
+			return getFoldersAndFileEntries(
+				folderId, null, start, end, orderByComparator);
 		}
 		catch (Exception exception) {
 			throw new RepositoryException(exception);
@@ -578,19 +563,8 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 			OrderByComparator<?> orderByComparator)
 		throws PortalException {
 
-		String extRepositoryFolderKey = getExtRepositoryObjectKey(folderId);
-
-		List<ExtRepositoryObjectAdapter<?>> extRepositoryObjectAdapters =
-			_toExtRepositoryObjectAdapters(
-				ExtRepositoryObjectAdapterType.OBJECT,
-				_extRepository.getExtRepositoryObjects(
-					ExtRepositoryObjectType.OBJECT, extRepositoryFolderKey));
-
-		extRepositoryObjectAdapters = _filterByMimeType(
-			extRepositoryObjectAdapters, mimeTypes);
-
 		List<Object> foldersAndFileEntries = _sublist(
-			extRepositoryObjectAdapters, start, end,
+			_getExtRepositoryObjectAdapters(folderId, mimeTypes), start, end,
 			(OrderByComparator<Object>)orderByComparator);
 
 		_checkAssetEntries(foldersAndFileEntries);
@@ -615,10 +589,10 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 	public int getFoldersAndFileEntriesCount(long folderId, String[] mimeTypes)
 		throws PortalException {
 
-		List<Object> extRepositoryObjects = getFoldersAndFileEntries(
-			folderId, mimeTypes, QueryUtil.ALL_POS, QueryUtil.ALL_POS, null);
+		List<ExtRepositoryObjectAdapter<?>> extRepositoryObjectAdapters =
+			_getExtRepositoryObjectAdapters(folderId, mimeTypes);
 
-		return extRepositoryObjects.size();
+		return extRepositoryObjectAdapters.size();
 	}
 
 	@Override
@@ -1345,6 +1319,21 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 		}
 
 		return (T)extRepositoryObjectAdapter;
+	}
+
+	private List<ExtRepositoryObjectAdapter<?>> _getExtRepositoryObjectAdapters(
+			long folderId, String[] mimeTypes)
+		throws PortalException {
+
+		String extRepositoryFolderKey = getExtRepositoryObjectKey(folderId);
+
+		List<ExtRepositoryObjectAdapter<?>> extRepositoryObjectAdapters =
+			_toExtRepositoryObjectAdapters(
+				ExtRepositoryObjectAdapterType.OBJECT,
+				_extRepository.getExtRepositoryObjects(
+					ExtRepositoryObjectType.OBJECT, extRepositoryFolderKey));
+
+		return _filterByMimeType(extRepositoryObjectAdapters, mimeTypes);
 	}
 
 	private String _getExtRepositoryObjectKey(String uuid)
