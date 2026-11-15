@@ -19,6 +19,7 @@ import com.liferay.document.library.repository.external.model.ExtRepositoryFolde
 import com.liferay.document.library.repository.external.model.ExtRepositoryObjectAdapter;
 import com.liferay.document.library.repository.external.model.ExtRepositoryObjectAdapterType;
 import com.liferay.petra.function.transform.TransformUtil;
+import com.liferay.petra.lang.CentralizedThreadLocal;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
@@ -322,8 +323,12 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 			_toExtRepositoryObjectAdapters(
 				ExtRepositoryObjectAdapterType.FILE, extRepositoryFileEntries);
 
-		return _sublist(
+		List<FileEntry> fileEntries = _sublist(
 			extRepositoryFileEntryAdapters, start, end, orderByComparator);
+
+		_checkAssetEntries(fileEntries);
+
+		return fileEntries;
 	}
 
 	@Override
@@ -360,8 +365,12 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 		extRepositoryFileEntryAdapters = _filterByMimeType(
 			extRepositoryFileEntryAdapters, mimeTypes);
 
-		return _sublist(
+		List<FileEntry> fileEntries = _sublist(
 			extRepositoryFileEntryAdapters, start, end, orderByComparator);
+
+		_checkAssetEntries(fileEntries);
+
+		return fileEntries;
 	}
 
 	@Override
@@ -550,9 +559,13 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 						ExtRepositoryObjectType.OBJECT,
 						extRepositoryFolderKey));
 
-			return _sublist(
+			List<Object> foldersAndFileEntries = _sublist(
 				extRepositoryObjectAdapters, start, end,
 				(OrderByComparator<Object>)orderByComparator);
+
+			_checkAssetEntries(foldersAndFileEntries);
+
+			return foldersAndFileEntries;
 		}
 		catch (Exception exception) {
 			throw new RepositoryException(exception);
@@ -576,9 +589,13 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 		extRepositoryObjectAdapters = _filterByMimeType(
 			extRepositoryObjectAdapters, mimeTypes);
 
-		return _sublist(
+		List<Object> foldersAndFileEntries = _sublist(
 			extRepositoryObjectAdapters, start, end,
 			(OrderByComparator<Object>)orderByComparator);
+
+		_checkAssetEntries(foldersAndFileEntries);
+
+		return foldersAndFileEntries;
 	}
 
 	@Override
@@ -1184,13 +1201,32 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 		return Validator.isNotNull(extRepositoryFileEntry.getCheckedOutBy());
 	}
 
+	private void _checkAssetEntries(List<?> objects) throws PortalException {
+		for (Object object : objects) {
+			if (!(object instanceof ExtRepositoryFileEntryAdapter)) {
+				continue;
+			}
+
+			_checkAssetEntry((ExtRepositoryFileEntryAdapter)object);
+		}
+	}
+
 	private void _checkAssetEntry(
 			ExtRepositoryFileEntryAdapter extRepositoryFileEntryAdapter)
 		throws PortalException {
 
+		Set<Long> checkedFileEntryIds = _checkedFileEntryIds.get();
+		long fileEntryId = extRepositoryFileEntryAdapter.getFileEntryId();
+
+		if (checkedFileEntryIds.contains(fileEntryId)) {
+			return;
+		}
+
 		dlAppHelperLocalService.checkAssetEntry(
 			PrincipalThreadLocal.getUserId(), extRepositoryFileEntryAdapter,
 			extRepositoryFileEntryAdapter.getFileVersion());
+
+		checkedFileEntryIds.add(fileEntryId);
 	}
 
 	private User _fetchGuestUser() {
@@ -1235,6 +1271,80 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 
 				return null;
 			});
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T extends ExtRepositoryObjectAdapter<?>> T
+			_getExtRepositoryObjectAdapter(
+				ExtRepositoryObjectAdapterType<T>
+					extRepositoryObjectAdapterType,
+				ExtRepositoryObject extRepositoryObject)
+		throws PortalException {
+
+		ExtRepositoryAdapterCache extRepositoryAdapterCache =
+			ExtRepositoryAdapterCache.getInstance();
+
+		String extRepositoryModelKey =
+			extRepositoryObject.getExtRepositoryModelKey();
+
+		ExtRepositoryObjectAdapter<?> extRepositoryObjectAdapter =
+			extRepositoryAdapterCache.get(extRepositoryModelKey);
+
+		if (extRepositoryObjectAdapter == null) {
+			RepositoryEntry repositoryEntry = getRepositoryEntry(
+				extRepositoryModelKey);
+
+			if (extRepositoryObject instanceof ExtRepositoryFolder) {
+				ExtRepositoryFolder extRepositoryFolder =
+					(ExtRepositoryFolder)extRepositoryObject;
+
+				extRepositoryObjectAdapter = new ExtRepositoryFolderAdapter(
+					this, repositoryEntry.getRepositoryEntryId(),
+					repositoryEntry.getUuid(), extRepositoryFolder);
+			}
+			else {
+				ExtRepositoryFileEntry extRepositoryFileEntry =
+					(ExtRepositoryFileEntry)extRepositoryObject;
+
+				extRepositoryObjectAdapter = new ExtRepositoryFileEntryAdapter(
+					this, repositoryEntry.getRepositoryEntryId(),
+					repositoryEntry.getUuid(), extRepositoryFileEntry);
+			}
+
+			extRepositoryAdapterCache.put(extRepositoryObjectAdapter);
+		}
+
+		if (extRepositoryObjectAdapterType ==
+				ExtRepositoryObjectAdapterType.FILE) {
+
+			if (!(extRepositoryObjectAdapter instanceof
+					ExtRepositoryFileEntryAdapter)) {
+
+				throw new NoSuchFileEntryException(
+					"External repository object is not a file " +
+						extRepositoryObject);
+			}
+		}
+		else if (extRepositoryObjectAdapterType ==
+					ExtRepositoryObjectAdapterType.FOLDER) {
+
+			if (!(extRepositoryObjectAdapter instanceof
+					ExtRepositoryFolderAdapter)) {
+
+				throw new NoSuchFolderException(
+					"External repository object is not a folder " +
+						extRepositoryObject);
+			}
+		}
+		else if (extRepositoryObjectAdapterType !=
+					ExtRepositoryObjectAdapterType.OBJECT) {
+
+			throw new IllegalArgumentException(
+				"Unsupported repository object type " +
+					extRepositoryObjectAdapterType);
+		}
+
+		return (T)extRepositoryObjectAdapter;
 	}
 
 	private String _getExtRepositoryObjectKey(String uuid)
@@ -1369,7 +1479,6 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 				extRepositoryFileEntryAdapter, extRepositoryFileVersion));
 	}
 
-	@SuppressWarnings("unchecked")
 	private <T extends ExtRepositoryObjectAdapter<?>> T
 			_toExtRepositoryObjectAdapter(
 				ExtRepositoryObjectAdapterType<T>
@@ -1377,73 +1486,17 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 				ExtRepositoryObject extRepositoryObject)
 		throws PortalException {
 
-		ExtRepositoryAdapterCache extRepositoryAdapterCache =
-			ExtRepositoryAdapterCache.getInstance();
+		T extRepositoryObjectAdapter = _getExtRepositoryObjectAdapter(
+			extRepositoryObjectAdapterType, extRepositoryObject);
 
-		String extRepositoryModelKey =
-			extRepositoryObject.getExtRepositoryModelKey();
+		if (extRepositoryObjectAdapter instanceof
+				ExtRepositoryFileEntryAdapter) {
 
-		ExtRepositoryObjectAdapter<?> extRepositoryObjectAdapter =
-			extRepositoryAdapterCache.get(extRepositoryModelKey);
-
-		if (extRepositoryObjectAdapter == null) {
-			RepositoryEntry repositoryEntry = getRepositoryEntry(
-				extRepositoryModelKey);
-
-			if (extRepositoryObject instanceof ExtRepositoryFolder) {
-				ExtRepositoryFolder extRepositoryFolder =
-					(ExtRepositoryFolder)extRepositoryObject;
-
-				extRepositoryObjectAdapter = new ExtRepositoryFolderAdapter(
-					this, repositoryEntry.getRepositoryEntryId(),
-					repositoryEntry.getUuid(), extRepositoryFolder);
-			}
-			else {
-				ExtRepositoryFileEntry extRepositoryFileEntry =
-					(ExtRepositoryFileEntry)extRepositoryObject;
-
-				extRepositoryObjectAdapter = new ExtRepositoryFileEntryAdapter(
-					this, repositoryEntry.getRepositoryEntryId(),
-					repositoryEntry.getUuid(), extRepositoryFileEntry);
-
-				_checkAssetEntry(
-					(ExtRepositoryFileEntryAdapter)extRepositoryObjectAdapter);
-			}
-
-			extRepositoryAdapterCache.put(extRepositoryObjectAdapter);
+			_checkAssetEntry(
+				(ExtRepositoryFileEntryAdapter)extRepositoryObjectAdapter);
 		}
 
-		if (extRepositoryObjectAdapterType ==
-				ExtRepositoryObjectAdapterType.FILE) {
-
-			if (!(extRepositoryObjectAdapter instanceof
-					ExtRepositoryFileEntryAdapter)) {
-
-				throw new NoSuchFileEntryException(
-					"External repository object is not a file " +
-						extRepositoryObject);
-			}
-		}
-		else if (extRepositoryObjectAdapterType ==
-					ExtRepositoryObjectAdapterType.FOLDER) {
-
-			if (!(extRepositoryObjectAdapter instanceof
-					ExtRepositoryFolderAdapter)) {
-
-				throw new NoSuchFolderException(
-					"External repository object is not a folder " +
-						extRepositoryObject);
-			}
-		}
-		else if (extRepositoryObjectAdapterType !=
-					ExtRepositoryObjectAdapterType.OBJECT) {
-
-			throw new IllegalArgumentException(
-				"Unsupported repository object type " +
-					extRepositoryObjectAdapterType);
-		}
-
-		return (T)extRepositoryObjectAdapter;
+		return extRepositoryObjectAdapter;
 	}
 
 	private <T extends ExtRepositoryObjectAdapter<?>> List<T>
@@ -1455,12 +1508,17 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 
 		return TransformUtil.transform(
 			extRepositoryObjects,
-			extRepositoryObject -> _toExtRepositoryObjectAdapter(
+			extRepositoryObject -> _getExtRepositoryObjectAdapter(
 				extRepositoryObjectAdapterType, extRepositoryObject));
 	}
 
 	private static final Log _log = LogFactoryUtil.getLog(
 		ExtRepositoryAdapter.class);
+
+	private static final ThreadLocal<Set<Long>> _checkedFileEntryIds =
+		new CentralizedThreadLocal<>(
+			ExtRepositoryAdapter.class.getName() + "._checkedFileEntryIds",
+			HashSet::new);
 
 	private final ExtRepository _extRepository;
 
