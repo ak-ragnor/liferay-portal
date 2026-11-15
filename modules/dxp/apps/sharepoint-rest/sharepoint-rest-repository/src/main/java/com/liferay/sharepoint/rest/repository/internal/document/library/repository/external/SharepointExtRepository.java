@@ -480,6 +480,16 @@ public class SharepointExtRepository implements ExtRepository {
 	}
 
 	@Override
+	public ExtRepositoryFileVersion getLatestExtRepositoryFileVersion(
+		ExtRepositoryFileEntry extRepositoryFileEntry) {
+
+		SharepointModel sharepointModel =
+			(SharepointModel)extRepositoryFileEntry;
+
+		return sharepointModel.asFileVersion();
+	}
+
+	@Override
 	public String getLiferayLogin(String extRepositoryLogin) {
 		return String.valueOf(PrincipalThreadLocal.getUserId());
 	}

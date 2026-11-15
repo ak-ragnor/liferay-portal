@@ -112,11 +112,10 @@ public class ExtRepositoryFileEntryAdapter
 	@Override
 	public FileVersion getFileVersion() {
 		try {
-			List<ExtRepositoryFileVersionAdapter>
-				extRepositoryFileVersionAdapters =
-					_getExtRepositoryFileVersionAdapters();
+			ExtRepositoryAdapter extRepositoryAdapter = getRepository();
 
-			return extRepositoryFileVersionAdapters.get(0);
+			return extRepositoryAdapter.
+				getLatestExtRepositoryFileVersionAdapter(this);
 		}
 		catch (PortalException portalException) {
 			throw new SystemException(portalException);
@@ -327,11 +326,11 @@ public class ExtRepositoryFileEntryAdapter
 	@Override
 	public String getVersion() {
 		try {
-			List<ExtRepositoryFileVersionAdapter>
-				extRepositoryFileVersionAdapters =
-					_getExtRepositoryFileVersionAdapters();
+			ExtRepositoryAdapter extRepositoryAdapter = getRepository();
 
-			FileVersion fileVersion = extRepositoryFileVersionAdapters.get(0);
+			FileVersion fileVersion =
+				extRepositoryAdapter.getLatestExtRepositoryFileVersionAdapter(
+					this);
 
 			return fileVersion.getVersion();
 		}

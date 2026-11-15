@@ -622,6 +622,19 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 		return count;
 	}
 
+	public ExtRepositoryFileVersionAdapter
+			getLatestExtRepositoryFileVersionAdapter(
+				ExtRepositoryFileEntryAdapter extRepositoryFileEntryAdapter)
+		throws PortalException {
+
+		ExtRepositoryFileVersion extRepositoryFileVersion =
+			_extRepository.getLatestExtRepositoryFileVersion(
+				extRepositoryFileEntryAdapter.getExtRepositoryModel());
+
+		return _toExtRepositoryFileVersionAdapter(
+			extRepositoryFileEntryAdapter, extRepositoryFileVersion);
+	}
+
 	public String getLiferayLogin(String extRepositoryUserName) {
 		return _extRepository.getLiferayLogin(extRepositoryUserName);
 	}

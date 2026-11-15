@@ -382,6 +382,15 @@ public class SharepointCachingExtRepository implements ExtRepository {
 	}
 
 	@Override
+	public ExtRepositoryFileVersion getLatestExtRepositoryFileVersion(
+			ExtRepositoryFileEntry extRepositoryFileEntry)
+		throws PortalException {
+
+		return _extRepository.getLatestExtRepositoryFileVersion(
+			extRepositoryFileEntry);
+	}
+
+	@Override
 	public String getLiferayLogin(String extRepositoryLogin) {
 		return _extRepository.getLiferayLogin(extRepositoryLogin);
 	}
