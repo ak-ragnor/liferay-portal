@@ -57,7 +57,6 @@ import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.PropsUtil;
 import com.liferay.portal.kernel.util.Time;
 import com.liferay.portal.kernel.util.Validator;
-import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.security.key.secret.SecretResolverUtil;
 
 import java.io.InputStream;
@@ -1238,13 +1237,6 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 			});
 	}
 
-	private void _forceGetFileVersions(
-		ExtRepositoryFileEntryAdapter extRepositoryFileEntryAdapter) {
-
-		extRepositoryFileEntryAdapter.getFileVersions(
-			WorkflowConstants.STATUS_ANY);
-	}
-
 	private String _getExtRepositoryObjectKey(String uuid)
 		throws PortalException {
 
@@ -1413,9 +1405,6 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 				extRepositoryObjectAdapter = new ExtRepositoryFileEntryAdapter(
 					this, repositoryEntry.getRepositoryEntryId(),
 					repositoryEntry.getUuid(), extRepositoryFileEntry);
-
-				_forceGetFileVersions(
-					(ExtRepositoryFileEntryAdapter)extRepositoryObjectAdapter);
 
 				_checkAssetEntry(
 					(ExtRepositoryFileEntryAdapter)extRepositoryObjectAdapter);
