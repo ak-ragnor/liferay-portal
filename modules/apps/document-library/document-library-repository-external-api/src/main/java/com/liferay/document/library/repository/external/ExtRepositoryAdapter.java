@@ -1244,7 +1244,7 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 				if (!(extRepositoryObject instanceof
 						ExtRepositoryFileEntryAdapter)) {
 
-					return null;
+					return extRepositoryObject;
 				}
 
 				ExtRepositoryFileEntryAdapter extRepositoryFileEntryAdapter =
