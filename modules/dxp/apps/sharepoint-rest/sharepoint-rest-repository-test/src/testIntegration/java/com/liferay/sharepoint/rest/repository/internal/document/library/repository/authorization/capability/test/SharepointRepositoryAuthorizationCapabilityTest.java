@@ -9,6 +9,7 @@ import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.document.library.constants.DLPortletKeys;
 import com.liferay.document.library.kernel.model.DLFolderConstants;
 import com.liferay.document.library.kernel.service.DLAppLocalService;
+import com.liferay.document.library.repository.authorization.oauth2.OAuth2AuthorizationException;
 import com.liferay.layout.test.util.LayoutTestUtil;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.configuration.test.util.ConfigurationTestUtil;
@@ -25,6 +26,8 @@ import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
 import com.liferay.portal.kernel.service.CompanyLocalService;
 import com.liferay.portal.kernel.service.RepositoryLocalService;
+import com.liferay.portal.kernel.struts.StrutsAction;
+import com.liferay.portal.kernel.test.AssertUtils;
 import com.liferay.portal.kernel.test.TestInfo;
 import com.liferay.portal.kernel.test.portlet.MockLiferayPortletRenderRequest;
 import com.liferay.portal.kernel.test.portlet.MockLiferayPortletRenderResponse;
@@ -176,13 +179,10 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 	}
 
 	private String _render(
-			Layout layout,
+			Layout layout, MockHttpServletRequest mockHttpServletRequest,
 			MockLiferayPortletRenderResponse mockLiferayPortletRenderResponse,
 			boolean signedIn)
 		throws Exception {
-
-		MockHttpServletRequest mockHttpServletRequest =
-			new MockHttpServletRequest();
 
 		MockLiferayPortletRenderRequest mockLiferayPortletRenderRequest =
 			new MockLiferayPortletRenderRequest(mockHttpServletRequest);
@@ -204,6 +204,8 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 	}
 
 	private void _testAuthorize() throws Exception {
+		MockHttpServletRequest mockHttpServletRequest =
+			new MockHttpServletRequest();
 		MockLiferayPortletRenderResponse mockLiferayPortletRenderResponse =
 			new MockLiferayPortletRenderResponse();
 
@@ -213,11 +215,27 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 				_addLayout(
 					_dlAppLocalService.getMountFolder(
 						_repository.getRepositoryId())),
-				mockLiferayPortletRenderResponse, true));
+				mockHttpServletRequest, mockLiferayPortletRenderResponse,
+				true));
 		Assert.assertTrue(
 			StringUtil.startsWith(
 				_getRedirectedURL(mockLiferayPortletRenderResponse),
 				"https://login.microsoftonline.com"));
+
+		MockHttpServletRequest callbackMockHttpServletRequest =
+			new MockHttpServletRequest();
+
+		callbackMockHttpServletRequest.setParameter(
+			"code", RandomTestUtil.randomString());
+		callbackMockHttpServletRequest.setSession(
+			mockHttpServletRequest.getSession());
+
+		AssertUtils.assertFailure(
+			OAuth2AuthorizationException.InvalidState.class,
+			"The resource owner returned an invalid state value: The " +
+				"Sharepoint server returned an invalid state",
+			() -> _strutsAction.execute(
+				callbackMockHttpServletRequest, new MockHttpServletResponse()));
 	}
 
 	private void _testAuthorizeWhenUserIsNotSignedIn() throws Exception {
@@ -229,7 +247,8 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 				_addLayout(
 					_dlAppLocalService.getMountFolder(
 						_repository.getRepositoryId())),
-				mockLiferayPortletRenderResponse, false);
+				new MockHttpServletRequest(), mockLiferayPortletRenderResponse,
+				false);
 
 			Assert.fail();
 		}
@@ -267,5 +286,8 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 
 	@Inject
 	private RepositoryLocalService _repositoryLocalService;
+
+	@Inject(filter = "path=/document_library/sharepoint/oauth2")
+	private StrutsAction _strutsAction;
 
 }
