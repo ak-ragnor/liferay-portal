@@ -283,19 +283,29 @@ public class SharepointExtRepository implements ExtRepository {
 			ExtRepositoryFileEntry extRepositoryFileEntry, String version)
 		throws PortalException {
 
-		List<ExtRepositoryFileVersion> extRepositoryFileVersions =
-			getExtRepositoryFileVersions(extRepositoryFileEntry);
-
 		String extRepositoryFileVersionKey = StringBundler.concat(
 			extRepositoryFileEntry.getExtRepositoryModelKey(), StringPool.COLON,
 			version);
 
+		ExtRepositoryFileVersion latestExtRepositoryFileVersion =
+			getLatestExtRepositoryFileVersion(extRepositoryFileEntry);
+
+		if (_isExtRepositoryFileVersion(
+				latestExtRepositoryFileVersion, extRepositoryFileVersionKey,
+				version)) {
+
+			return latestExtRepositoryFileVersion;
+		}
+
+		List<ExtRepositoryFileVersion> extRepositoryFileVersions =
+			getExtRepositoryFileVersions(extRepositoryFileEntry);
+
 		for (ExtRepositoryFileVersion extRepositoryFileVersion :
 				extRepositoryFileVersions) {
 
-			if (extRepositoryFileVersionKey.equals(
-					extRepositoryFileVersion.getExtRepositoryModelKey()) ||
-				version.equals(extRepositoryFileVersion.getVersion())) {
+			if (_isExtRepositoryFileVersion(
+					extRepositoryFileVersion, extRepositoryFileVersionKey,
+					version)) {
 
 				return extRepositoryFileVersion;
 			}
@@ -843,6 +853,20 @@ public class SharepointExtRepository implements ExtRepository {
 
 			throw new PrincipalException(message);
 		}
+	}
+
+	private boolean _isExtRepositoryFileVersion(
+		ExtRepositoryFileVersion extRepositoryFileVersion,
+		String extRepositoryFileVersionKey, String version) {
+
+		if (extRepositoryFileVersionKey.equals(
+				extRepositoryFileVersion.getExtRepositoryModelKey()) ||
+			version.equals(extRepositoryFileVersion.getVersion())) {
+
+			return true;
+		}
+
+		return false;
 	}
 
 	private void _post(String url) throws PortalException, UnirestException {

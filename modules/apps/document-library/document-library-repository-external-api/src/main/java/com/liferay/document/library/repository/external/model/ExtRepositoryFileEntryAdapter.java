@@ -124,6 +124,14 @@ public class ExtRepositoryFileEntryAdapter
 
 	@Override
 	public FileVersion getFileVersion(String version) throws PortalException {
+		FileVersion fileVersion = getFileVersion();
+
+		String latestVersion = fileVersion.getVersion();
+
+		if (latestVersion.equals(version)) {
+			return fileVersion;
+		}
+
 		List<ExtRepositoryFileVersionAdapter> extRepositoryFileVersionAdapters =
 			_getExtRepositoryFileVersionAdapters();
 
