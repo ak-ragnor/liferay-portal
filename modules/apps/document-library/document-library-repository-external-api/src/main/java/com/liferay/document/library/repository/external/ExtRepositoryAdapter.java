@@ -312,22 +312,7 @@ public class ExtRepositoryAdapter extends BaseRepositoryImpl {
 			OrderByComparator<FileEntry> orderByComparator)
 		throws PortalException {
 
-		String extRepositoryFolderKey = getExtRepositoryObjectKey(folderId);
-
-		List<ExtRepositoryFileEntry> extRepositoryFileEntries =
-			_extRepository.getExtRepositoryObjects(
-				ExtRepositoryObjectType.FILE, extRepositoryFolderKey);
-
-		List<ExtRepositoryFileEntryAdapter> extRepositoryFileEntryAdapters =
-			_toExtRepositoryObjectAdapters(
-				ExtRepositoryObjectAdapterType.FILE, extRepositoryFileEntries);
-
-		List<FileEntry> fileEntries = _sublist(
-			extRepositoryFileEntryAdapters, start, end, orderByComparator);
-
-		_checkAssetEntries(fileEntries);
-
-		return fileEntries;
+		return getFileEntries(folderId, null, start, end, orderByComparator);
 	}
 
 	@Override
