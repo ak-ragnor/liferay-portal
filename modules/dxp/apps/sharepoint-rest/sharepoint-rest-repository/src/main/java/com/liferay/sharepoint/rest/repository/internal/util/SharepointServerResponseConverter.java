@@ -322,7 +322,24 @@ public class SharepointServerResponseConverter {
 
 		return (T)new SharepointFolder(
 			extRepositoryModelKey, name, createDate, modifiedDate,
-			effectiveBasePermissionsBits);
+			effectiveBasePermissionsBits, _getChildCount(jsonObject, "Folders"),
+			_getChildCount(jsonObject, "Files"));
+	}
+
+	private Integer _getChildCount(JSONObject jsonObject, String key) {
+		JSONObject childrenJSONObject = jsonObject.getJSONObject(key);
+
+		if (childrenJSONObject == null) {
+			return null;
+		}
+
+		JSONArray resultsJSONArray = childrenJSONObject.getJSONArray("results");
+
+		if (resultsJSONArray == null) {
+			return null;
+		}
+
+		return resultsJSONArray.length();
 	}
 
 	private long _getEffectiveBasePermissionsBits(JSONObject jsonObject) {

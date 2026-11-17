@@ -195,10 +195,10 @@ public class SharepointURLHelper {
 
 		return String.format(
 			"%s/_api/web/GetFolderByServerRelativePath(decodedUrl='%s')" +
-				"?$select=%s&$expand=%s",
+				"?$select=%s&$expand=ListItemAllFields",
 			_siteAbsoluteURL,
 			HttpComponentsUtil.encodePath(extRepositoryObjectKey),
-			_FIELDS_SELECTED_FOLDER, _FIELDS_EXPANDED_FOLDER);
+			_FIELDS_SELECTED_FOLDER_OBJECT);
 	}
 
 	public <T extends ExtRepositoryObject> String getObjectsCountURL(
@@ -246,7 +246,8 @@ public class SharepointURLHelper {
 	private static final String _FIELDS_EXPANDED_FILE = StringUtil.merge(
 		Arrays.asList("Author", "CheckedOutByUser", "ListItemAllFields"));
 
-	private static final String _FIELDS_EXPANDED_FOLDER = "ListItemAllFields";
+	private static final String _FIELDS_EXPANDED_FOLDER = StringUtil.merge(
+		Arrays.asList("Files", "Folders", "ListItemAllFields"));
 
 	private static final String _FIELDS_SELECTED_FILE = StringUtil.merge(
 		Arrays.asList(
@@ -257,8 +258,15 @@ public class SharepointURLHelper {
 
 	private static final String _FIELDS_SELECTED_FOLDER = StringUtil.merge(
 		Arrays.asList(
-			"Name", "ListItemAllFields/EffectiveBasePermissions",
-			"ServerRelativeUrl", "TimeCreated", "TimeLastModified"));
+			"Files/Name", "Folders/Name", "Name",
+			"ListItemAllFields/EffectiveBasePermissions", "ServerRelativeUrl",
+			"TimeCreated", "TimeLastModified"));
+
+	private static final String _FIELDS_SELECTED_FOLDER_OBJECT =
+		StringUtil.merge(
+			Arrays.asList(
+				"Name", "ListItemAllFields/EffectiveBasePermissions",
+				"ServerRelativeUrl", "TimeCreated", "TimeLastModified"));
 
 	private final String _resultsSourceId;
 	private final String _siteAbsoluteURL;
