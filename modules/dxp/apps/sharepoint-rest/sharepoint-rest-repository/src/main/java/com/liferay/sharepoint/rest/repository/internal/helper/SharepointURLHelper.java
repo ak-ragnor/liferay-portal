@@ -121,7 +121,7 @@ public class SharepointURLHelper {
 
 		return String.format(
 			"%s/_api/web/GetFileByServerRelativePath(decodedUrl='%s')" +
-				"/Versions(%s)",
+				"/Versions(%s)/$value",
 			_siteAbsoluteURL,
 			HttpComponentsUtil.encodePath(
 				extRepositoryFileEntry.getExtRepositoryModelKey()),
