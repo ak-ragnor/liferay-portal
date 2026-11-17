@@ -12,6 +12,8 @@ import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.module.service.Snapshot;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.PortalUtil;
+import com.liferay.portal.kernel.util.RenderLayoutContentThreadLocal;
+import com.liferay.portal.kernel.util.ServerDetector;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.util.WebKeys;
 import com.liferay.taglib.servlet.PipingServletResponseFactory;
@@ -36,6 +38,12 @@ public class CaptchaTag extends IncludeTag {
 		Captcha captcha = CaptchaUtil.getCaptcha();
 
 		try {
+			if ((ServerDetector.isJBoss() || ServerDetector.isWildfly()) &&
+				RenderLayoutContentThreadLocal.isRenderLayoutContent()) {
+
+				return EVAL_PAGE;
+			}
+
 			captcha.render(
 				getRequest(),
 				PipingServletResponseFactory.createPipingServletResponse(
