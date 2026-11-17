@@ -13,6 +13,7 @@ import com.liferay.document.library.repository.external.ExtRepositoryObjectType;
 import com.liferay.petra.lang.CentralizedThreadLocal;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
+import com.liferay.sharepoint.rest.repository.internal.document.library.repository.external.model.SharepointFolder;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -105,6 +106,73 @@ public class SharepointCachingExtRepositoryTest {
 		).getExtRepositoryObjects(
 			ExtRepositoryObjectType.OBJECT, extRepositoryFolderKey
 		);
+	}
+
+	@Test
+	public void testGetExtRepositoryObjectsCount() throws Exception {
+		ExtRepository extRepository = Mockito.mock(ExtRepository.class);
+
+		String extRepositoryFolderKey = "/" + RandomTestUtil.randomString();
+
+		String countedExtRepositoryFolderKey =
+			extRepositoryFolderKey + "/" + RandomTestUtil.randomString();
+		String uncountedExtRepositoryFolderKey =
+			extRepositoryFolderKey + "/" + RandomTestUtil.randomString();
+
+		Mockito.when(
+			extRepository.getExtRepositoryObjects(
+				ExtRepositoryObjectType.FOLDER, extRepositoryFolderKey)
+		).thenReturn(
+			Arrays.asList(
+				_getSharepointFolder(countedExtRepositoryFolderKey, 2, 3),
+				_getSharepointFolder(
+					uncountedExtRepositoryFolderKey, null, null))
+		);
+
+		int extRepositoryObjectsCount = RandomTestUtil.randomInt();
+
+		Mockito.when(
+			extRepository.getExtRepositoryObjectsCount(
+				Mockito.eq(ExtRepositoryObjectType.FILE), Mockito.anyString())
+		).thenReturn(
+			extRepositoryObjectsCount
+		);
+
+		SharepointCachingExtRepository sharepointCachingExtRepository =
+			new SharepointCachingExtRepository(extRepository);
+
+		sharepointCachingExtRepository.getExtRepositoryObjects(
+			ExtRepositoryObjectType.FOLDER, extRepositoryFolderKey);
+
+		// Counted folder
+
+		Assert.assertEquals(
+			3,
+			sharepointCachingExtRepository.getExtRepositoryObjectsCount(
+				ExtRepositoryObjectType.FILE, countedExtRepositoryFolderKey));
+		Assert.assertEquals(
+			2,
+			sharepointCachingExtRepository.getExtRepositoryObjectsCount(
+				ExtRepositoryObjectType.FOLDER, countedExtRepositoryFolderKey));
+
+		// Moved file
+
+		sharepointCachingExtRepository.moveExtRepositoryObject(
+			ExtRepositoryObjectType.FILE,
+			countedExtRepositoryFolderKey + "/" + RandomTestUtil.randomString(),
+			uncountedExtRepositoryFolderKey, RandomTestUtil.randomString());
+
+		Assert.assertEquals(
+			extRepositoryObjectsCount,
+			sharepointCachingExtRepository.getExtRepositoryObjectsCount(
+				ExtRepositoryObjectType.FILE, countedExtRepositoryFolderKey));
+
+		// Uncounted folder
+
+		Assert.assertEquals(
+			extRepositoryObjectsCount,
+			sharepointCachingExtRepository.getExtRepositoryObjectsCount(
+				ExtRepositoryObjectType.FILE, uncountedExtRepositoryFolderKey));
 	}
 
 	@Test
@@ -219,6 +287,16 @@ public class SharepointCachingExtRepositoryTest {
 		);
 
 		return extRepositoryObject;
+	}
+
+	private SharepointFolder _getSharepointFolder(
+		String extRepositoryModelKey, Integer foldersCount,
+		Integer filesCount) {
+
+		return new SharepointFolder(
+			extRepositoryModelKey, RandomTestUtil.randomString(),
+			RandomTestUtil.nextDate(), RandomTestUtil.nextDate(),
+			RandomTestUtil.randomLong(), foldersCount, filesCount);
 	}
 
 }
