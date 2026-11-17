@@ -5,11 +5,23 @@
 
 package com.liferay.document.library.repository.external;
 
+import com.liferay.document.library.kernel.model.DLFolderConstants;
+import com.liferay.document.library.kernel.service.DLAppHelperLocalService;
+import com.liferay.document.library.repository.external.model.ExtRepositoryFileVersionAdapter;
+import com.liferay.petra.function.transform.TransformUtil;
+import com.liferay.petra.lang.CentralizedThreadLocal;
+import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.model.CompanyConstants;
+import com.liferay.portal.kernel.model.RepositoryEntry;
 import com.liferay.portal.kernel.module.service.Snapshot;
+import com.liferay.portal.kernel.repository.model.FileEntry;
+import com.liferay.portal.kernel.repository.model.FileVersion;
+import com.liferay.portal.kernel.service.RepositoryEntryLocalService;
 import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.ListUtil;
+import com.liferay.portal.kernel.util.OrderByComparator;
 import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.PropsUtil;
 import com.liferay.portal.security.key.KeyReference;
@@ -18,6 +30,10 @@ import com.liferay.portal.security.key.secret.SecretResolver;
 import com.liferay.portal.security.key.secret.SecretResolverUtil;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -25,6 +41,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 /**
@@ -56,11 +73,247 @@ public class ExtRepositoryAdapterTest {
 
 	@After
 	public void tearDown() {
+		CentralizedThreadLocal.clearShortLivedCentralizedThreadLocals();
+
 		PropsUtil.set(
 			PropsKeys.DL_REPOSITORY_GUEST_PASSWORD, _dlRepositoryGuestPassword);
 		ReflectionTestUtil.setFieldValue(
 			SecretResolverUtil.class, "_secretResolverSnapshot",
 			_secretResolverSnapshot);
+	}
+
+	@Test
+	public void testGetFileEntries() throws Exception {
+		ExtRepositoryAdapter extRepositoryAdapter = _getExtRepositoryAdapter();
+
+		// Sorted
+
+		List<FileEntry> fileEntries = extRepositoryAdapter.getFileEntries(
+			DLFolderConstants.DEFAULT_PARENT_FOLDER_ID, 0, 20,
+			new OrderByComparator<FileEntry>() {
+
+				@Override
+				public int compare(FileEntry fileEntry1, FileEntry fileEntry2) {
+					return Long.compare(
+						fileEntry2.getFileEntryId(),
+						fileEntry1.getFileEntryId());
+				}
+
+			});
+
+		List<Long> fileEntryIds = ListUtil.subList(
+			ListUtil.sort(
+				ListUtil.copy(_fileEntryIds), Collections.reverseOrder()),
+			0, 20);
+
+		Assert.assertEquals(
+			fileEntryIds,
+			TransformUtil.transform(fileEntries, FileEntry::getFileEntryId));
+
+		_assertCheckAssetEntry(fileEntryIds);
+
+		CentralizedThreadLocal.clearShortLivedCentralizedThreadLocals();
+
+		Mockito.clearInvocations(_dlAppHelperLocalService);
+
+		// Unsorted
+
+		fileEntries = extRepositoryAdapter.getFileEntries(
+			DLFolderConstants.DEFAULT_PARENT_FOLDER_ID, 0, 20, null);
+
+		fileEntryIds = _fileEntryIds.subList(0, 20);
+
+		Assert.assertEquals(
+			fileEntryIds,
+			TransformUtil.transform(fileEntries, FileEntry::getFileEntryId));
+
+		_assertCheckAssetEntry(fileEntryIds);
+	}
+
+	@Test
+	public void testGetFileEntry() throws Exception {
+		ExtRepositoryAdapter extRepositoryAdapter = _getExtRepositoryAdapter();
+
+		extRepositoryAdapter.getFoldersAndFileEntries(
+			DLFolderConstants.DEFAULT_PARENT_FOLDER_ID, 0, 20, null);
+
+		// Displayed file entry
+
+		extRepositoryAdapter.getFileEntry(_fileEntryIds.get(0));
+
+		// Not displayed file entry
+
+		extRepositoryAdapter.getFileEntry(_fileEntryIds.get(24));
+		extRepositoryAdapter.getFileEntry(_fileEntryIds.get(24));
+
+		// Not displayed file entry whose check fails
+
+		String message = RandomTestUtil.randomString();
+
+		Mockito.doThrow(
+			new PortalException(message)
+		).doNothing(
+		).when(
+			_dlAppHelperLocalService
+		).checkAssetEntry(
+			Mockito.anyLong(),
+			Mockito.argThat(
+				fileEntry ->
+					fileEntry.getFileEntryId() == _fileEntryIds.get(23)),
+			Mockito.any(FileVersion.class)
+		);
+
+		try {
+			extRepositoryAdapter.getFileEntry(_fileEntryIds.get(23));
+
+			Assert.fail();
+		}
+		catch (PortalException portalException) {
+			Assert.assertEquals(message, portalException.getMessage());
+		}
+
+		extRepositoryAdapter.getFileEntry(_fileEntryIds.get(23));
+
+		List<Long> fileEntryIds = new ArrayList<>(_fileEntryIds.subList(0, 20));
+
+		fileEntryIds.add(_fileEntryIds.get(24));
+		fileEntryIds.add(_fileEntryIds.get(23));
+		fileEntryIds.add(_fileEntryIds.get(23));
+
+		_assertCheckAssetEntry(fileEntryIds);
+	}
+
+	@Test
+	public void testGetFoldersAndFileEntries() throws Exception {
+		ExtRepositoryAdapter extRepositoryAdapter = _getExtRepositoryAdapter();
+
+		List<Object> foldersAndFileEntries =
+			extRepositoryAdapter.getFoldersAndFileEntries(
+				DLFolderConstants.DEFAULT_PARENT_FOLDER_ID, 0, 20, null);
+
+		Assert.assertEquals(
+			foldersAndFileEntries.toString(), 20, foldersAndFileEntries.size());
+
+		_assertCheckAssetEntry(_fileEntryIds.subList(0, 20));
+
+		Mockito.verify(
+			_extRepository, Mockito.times(20)
+		).getExtRepositoryFileVersions(
+			Mockito.any(ExtRepositoryFileEntry.class)
+		);
+	}
+
+	@Test
+	public void testGetFoldersAndFileEntriesCount() throws Exception {
+		ExtRepositoryAdapter extRepositoryAdapter = _getExtRepositoryAdapter();
+
+		ExtRepositoryFolder extRepositoryFolder = Mockito.mock(
+			ExtRepositoryFolder.class);
+
+		Mockito.when(
+			extRepositoryFolder.getExtRepositoryModelKey()
+		).thenReturn(
+			RandomTestUtil.randomString()
+		);
+
+		List<ExtRepositoryObject> extRepositoryObjects = new ArrayList<>(
+			_extRepositoryFileEntries);
+
+		extRepositoryObjects.add(extRepositoryFolder);
+
+		Mockito.when(
+			_extRepository.getExtRepositoryObjects(
+				ExtRepositoryObjectType.OBJECT,
+				_extRepository.getRootFolderKey())
+		).thenReturn(
+			extRepositoryObjects
+		);
+
+		Assert.assertEquals(
+			26,
+			extRepositoryAdapter.getFoldersAndFileEntriesCount(
+				DLFolderConstants.DEFAULT_PARENT_FOLDER_ID, null));
+
+		String mimeType = RandomTestUtil.randomString();
+
+		for (ExtRepositoryFileEntry extRepositoryFileEntry :
+				_extRepositoryFileEntries.subList(0, 5)) {
+
+			Mockito.when(
+				extRepositoryFileEntry.getMimeType()
+			).thenReturn(
+				mimeType
+			);
+		}
+
+		Assert.assertEquals(
+			6,
+			extRepositoryAdapter.getFoldersAndFileEntriesCount(
+				DLFolderConstants.DEFAULT_PARENT_FOLDER_ID,
+				new String[] {mimeType}));
+
+		_assertCheckAssetEntry(Collections.emptyList());
+
+		Mockito.verify(
+			_extRepository, Mockito.never()
+		).getExtRepositoryFileVersions(
+			Mockito.any(ExtRepositoryFileEntry.class)
+		);
+	}
+
+	@Test
+	public void testGetLatestExtRepositoryFileVersionAdapter()
+		throws Exception {
+
+		ExtRepositoryAdapter extRepositoryAdapter = _getExtRepositoryAdapter();
+
+		ExtRepositoryFileVersion extRepositoryFileVersion = Mockito.mock(
+			ExtRepositoryFileVersion.class);
+
+		Mockito.when(
+			extRepositoryFileVersion.getExtRepositoryModelKey()
+		).thenReturn(
+			RandomTestUtil.randomString()
+		);
+
+		String version = RandomTestUtil.randomString();
+
+		Mockito.when(
+			extRepositoryFileVersion.getVersion()
+		).thenReturn(
+			version
+		);
+
+		Mockito.doReturn(
+			extRepositoryFileVersion
+		).when(
+			_extRepository
+		).getLatestExtRepositoryFileVersion(
+			Mockito.any(ExtRepositoryFileEntry.class)
+		);
+
+		FileEntry fileEntry = extRepositoryAdapter.getFileEntry(
+			_fileEntryIds.get(0));
+
+		ExtRepositoryFileVersionAdapter extRepositoryFileVersionAdapter =
+			(ExtRepositoryFileVersionAdapter)fileEntry.getFileVersion();
+
+		Assert.assertSame(
+			extRepositoryFileVersion,
+			extRepositoryFileVersionAdapter.getExtRepositoryModel());
+
+		extRepositoryFileVersionAdapter =
+			(ExtRepositoryFileVersionAdapter)fileEntry.getFileVersion(version);
+
+		Assert.assertSame(
+			extRepositoryFileVersion,
+			extRepositoryFileVersionAdapter.getExtRepositoryModel());
+
+		Mockito.verify(
+			_extRepository, Mockito.never()
+		).getExtRepositoryFileVersions(
+			Mockito.any(ExtRepositoryFileEntry.class)
+		);
 	}
 
 	@Test
@@ -83,6 +336,146 @@ public class ExtRepositoryAdapterTest {
 		_testGetPassword(password, password);
 	}
 
+	private void _assertCheckAssetEntry(List<Long> fileEntryIds)
+		throws Exception {
+
+		ArgumentCaptor<FileEntry> argumentCaptor = ArgumentCaptor.forClass(
+			FileEntry.class);
+
+		Mockito.verify(
+			_dlAppHelperLocalService, Mockito.atLeast(0)
+		).checkAssetEntry(
+			Mockito.anyLong(), argumentCaptor.capture(),
+			Mockito.any(FileVersion.class)
+		);
+
+		Assert.assertEquals(
+			fileEntryIds,
+			TransformUtil.transform(
+				argumentCaptor.getAllValues(), FileEntry::getFileEntryId));
+	}
+
+	private ExtRepositoryAdapter _getExtRepositoryAdapter() throws Exception {
+		Mockito.when(
+			_repositoryEntryLocalService.getRepositoryEntry(
+				Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong(),
+				Mockito.anyString())
+		).thenReturn(
+			Mockito.mock(RepositoryEntry.class)
+		);
+
+		for (int i = 0; i < 25; i++) {
+			String extRepositoryModelKey = RandomTestUtil.randomString();
+
+			ExtRepositoryFileEntry extRepositoryFileEntry = Mockito.mock(
+				ExtRepositoryFileEntry.class);
+
+			Mockito.when(
+				extRepositoryFileEntry.getExtRepositoryModelKey()
+			).thenReturn(
+				extRepositoryModelKey
+			);
+
+			Mockito.when(
+				extRepositoryFileEntry.getMimeType()
+			).thenReturn(
+				RandomTestUtil.randomString()
+			);
+
+			Mockito.when(
+				_extRepository.getExtRepositoryObject(
+					ExtRepositoryObjectType.FILE, extRepositoryModelKey)
+			).thenReturn(
+				extRepositoryFileEntry
+			);
+
+			_extRepositoryFileEntries.add(extRepositoryFileEntry);
+
+			long fileEntryId = RandomTestUtil.randomLong();
+
+			RepositoryEntry repositoryEntry = Mockito.mock(
+				RepositoryEntry.class);
+
+			Mockito.when(
+				repositoryEntry.getMappedId()
+			).thenReturn(
+				extRepositoryModelKey
+			);
+
+			Mockito.when(
+				repositoryEntry.getRepositoryEntryId()
+			).thenReturn(
+				fileEntryId
+			);
+
+			Mockito.when(
+				_repositoryEntryLocalService.fetchRepositoryEntry(fileEntryId)
+			).thenReturn(
+				repositoryEntry
+			);
+
+			Mockito.when(
+				_repositoryEntryLocalService.getRepositoryEntry(
+					Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong(),
+					Mockito.eq(extRepositoryModelKey))
+			).thenReturn(
+				repositoryEntry
+			);
+
+			_fileEntryIds.add(fileEntryId);
+		}
+
+		Mockito.when(
+			_extRepository.getExtRepositoryFileVersions(
+				Mockito.any(ExtRepositoryFileEntry.class))
+		).thenAnswer(
+			invocation -> {
+				ExtRepositoryFileVersion extRepositoryFileVersion =
+					Mockito.mock(ExtRepositoryFileVersion.class);
+
+				Mockito.when(
+					extRepositoryFileVersion.getExtRepositoryModelKey()
+				).thenReturn(
+					RandomTestUtil.randomString()
+				);
+
+				return Collections.singletonList(extRepositoryFileVersion);
+			}
+		);
+
+		String rootFolderKey = RandomTestUtil.randomString();
+
+		Mockito.when(
+			_extRepository.getExtRepositoryObjects(
+				ExtRepositoryObjectType.OBJECT, rootFolderKey)
+		).thenReturn(
+			new ArrayList<>(_extRepositoryFileEntries)
+		);
+
+		Mockito.when(
+			_extRepository.getExtRepositoryObjects(
+				ExtRepositoryObjectType.FILE, rootFolderKey)
+		).thenReturn(
+			new ArrayList<>(_extRepositoryFileEntries)
+		);
+
+		Mockito.when(
+			_extRepository.getRootFolderKey()
+		).thenReturn(
+			rootFolderKey
+		);
+
+		ExtRepositoryAdapter extRepositoryAdapter = new ExtRepositoryAdapter(
+			_extRepository);
+
+		extRepositoryAdapter.setDLAppHelperLocalService(
+			_dlAppHelperLocalService);
+		extRepositoryAdapter.setRepositoryEntryLocalService(
+			_repositoryEntryLocalService);
+
+		return extRepositoryAdapter;
+	}
+
 	private void _testGetPassword(String expectedPassword, String password) {
 		PropsUtil.set(PropsKeys.DL_REPOSITORY_GUEST_PASSWORD, password);
 
@@ -95,7 +488,20 @@ public class ExtRepositoryAdapterTest {
 				extRepositoryAdapter, "_getPassword", new Class<?>[0]));
 	}
 
+	private final DLAppHelperLocalService _dlAppHelperLocalService =
+		Mockito.mock(DLAppHelperLocalService.class);
 	private String _dlRepositoryGuestPassword;
+	private final ExtRepository _extRepository = Mockito.mock(
+		ExtRepository.class,
+		Mockito.withSettings(
+		).defaultAnswer(
+			Mockito.CALLS_REAL_METHODS
+		));
+	private final List<ExtRepositoryFileEntry> _extRepositoryFileEntries =
+		new ArrayList<>();
+	private final List<Long> _fileEntryIds = new ArrayList<>();
+	private final RepositoryEntryLocalService _repositoryEntryLocalService =
+		Mockito.mock(RepositoryEntryLocalService.class);
 	private SecretResolver _secretResolver;
 	private Snapshot<SecretResolver> _secretResolverSnapshot;
 
