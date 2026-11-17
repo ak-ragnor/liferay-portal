@@ -5,6 +5,7 @@
 
 package com.liferay.sharepoint.rest.repository.internal.helper;
 
+import com.liferay.document.library.kernel.model.DLVersionNumberIncrease;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 import com.liferay.sharepoint.rest.repository.internal.document.library.repository.external.model.SharepointFileEntry;
@@ -23,6 +24,19 @@ public class SharepointURLHelperTest {
 	@Rule
 	public static final LiferayUnitTestRule liferayUnitTestRule =
 		LiferayUnitTestRule.INSTANCE;
+
+	@Test
+	public void testGetCheckInFileURL() {
+		SharepointURLHelper sharepointURLHelper = new SharepointURLHelper(
+			"http://sharepoint", RandomTestUtil.randomString());
+
+		Assert.assertEquals(
+			"http://sharepoint/_api/web/GetFileByServerRelativePath(" +
+				"decodedUrl='/Documents/image.png')/CheckIn(comment='notes'," +
+					"checkintype=2)",
+			sharepointURLHelper.getCheckInFileURL(
+				"/Documents/image.png", DLVersionNumberIncrease.NONE, "notes"));
+	}
 
 	@Test
 	public void testGetFileVersionContentURL() {
