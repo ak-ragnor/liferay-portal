@@ -10,6 +10,7 @@ import com.liferay.document.library.kernel.service.DLAppHelperLocalService;
 import com.liferay.document.library.kernel.service.DLFolderLocalService;
 import com.liferay.document.library.repository.authorization.capability.AuthorizationCapability;
 import com.liferay.document.library.repository.authorization.oauth2.TokenStore;
+import com.liferay.document.library.repository.external.MinorVersionCapability;
 import com.liferay.portal.configuration.metatype.bnd.util.ConfigurableUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.language.Language;
@@ -90,6 +91,12 @@ public abstract class BaseSharepointRepositoryDefiner
 				ProcessorCapability.ResourceGenerationStrategy.
 					ALWAYS_GENERATE));
 
+		DocumentRepository documentRepository = capabilityRegistry.getTarget();
+
+		capabilityRegistry.addExportedCapability(
+			MinorVersionCapability.class,
+			() -> _isMinorVersionEnabled(documentRepository.getRepositoryId()));
+
 		capabilityRegistry.addExportedCapability(
 			AuthorizationCapability.class,
 			new SharepointRepositoryAuthorizationCapability(
@@ -148,6 +155,22 @@ public abstract class BaseSharepointRepositoryDefiner
 
 	@Reference
 	protected UserLocalService userLocalService;
+
+	private boolean _isMinorVersionEnabled(long repositoryId)
+		throws PortalException {
+
+		com.liferay.portal.kernel.model.Repository repository =
+			repositoryLocalService.getRepository(repositoryId);
+
+		SharepointExtRepository sharepointExtRepository =
+			new SharepointExtRepository(
+				tokenStore, _sharepointRepositoryConfiguration);
+
+		sharepointExtRepository.initRepository(
+			repository.getTypeSettingsProperties(), null);
+
+		return sharepointExtRepository.isMinorVersionEnabled();
+	}
 
 	private SharepointRepositoryConfiguration
 		_sharepointRepositoryConfiguration;
