@@ -58,4 +58,15 @@ public class SharepointURLHelperTest {
 				sharepointFileEntry, "512"));
 	}
 
+	@Test
+	public void testGetListURL() {
+		SharepointURLHelper sharepointURLHelper = new SharepointURLHelper(
+			"http://sharepoint/sites/site", RandomTestUtil.randomString());
+
+		Assert.assertEquals(
+			"http://sharepoint/sites/site/_api/web/GetList('/sites/site" +
+				"/Shared%20Documents')?$select=EnableMinorVersions",
+			sharepointURLHelper.getListURL("Shared Documents"));
+	}
+
 }
