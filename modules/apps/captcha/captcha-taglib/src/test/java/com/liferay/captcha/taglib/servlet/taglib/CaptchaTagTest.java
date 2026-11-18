@@ -10,7 +10,6 @@ import com.liferay.portal.kernel.captcha.Captcha;
 import com.liferay.portal.kernel.test.TestInfo;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.util.RenderLayoutContentThreadLocal;
-import com.liferay.portal.kernel.util.ServerDetector;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 
 import jakarta.servlet.jsp.tagext.Tag;
@@ -39,25 +38,19 @@ public class CaptchaTagTest {
 	@Test
 	@TestInfo("LPD-115999")
 	public void testDoEndTag() throws Exception {
-		_testDoEndTag(false, ServerDetector::isJBoss, Mockito.times(1));
-		_testDoEndTag(true, ServerDetector::isJBoss, Mockito.never());
-		_testDoEndTag(true, ServerDetector::isTomcat, Mockito.times(1));
-		_testDoEndTag(true, ServerDetector::isWildfly, Mockito.never());
+		_testDoEndTag(false, Mockito.times(1));
+		_testDoEndTag(true, Mockito.never());
 	}
 
 	private void _testDoEndTag(
-			boolean renderLayoutContent,
-			MockedStatic.Verification serverDetectorVerification,
-			VerificationMode verificationMode)
+			boolean renderLayoutContent, VerificationMode verificationMode)
 		throws Exception {
 
 		boolean originalRenderLayoutContent =
 			RenderLayoutContentThreadLocal.isRenderLayoutContent();
 
 		try (MockedStatic<CaptchaUtil> captchaUtilMockedStatic =
-				Mockito.mockStatic(CaptchaUtil.class);
-			MockedStatic<ServerDetector> serverDetectorMockedStatic =
-				Mockito.mockStatic(ServerDetector.class)) {
+				Mockito.mockStatic(CaptchaUtil.class)) {
 
 			Captcha captcha = Mockito.mock(Captcha.class);
 
@@ -65,12 +58,6 @@ public class CaptchaTagTest {
 				CaptchaUtil::getCaptcha
 			).thenReturn(
 				captcha
-			);
-
-			serverDetectorMockedStatic.when(
-				serverDetectorVerification
-			).thenReturn(
-				true
 			);
 
 			RenderLayoutContentThreadLocal.setRenderLayoutContent(
