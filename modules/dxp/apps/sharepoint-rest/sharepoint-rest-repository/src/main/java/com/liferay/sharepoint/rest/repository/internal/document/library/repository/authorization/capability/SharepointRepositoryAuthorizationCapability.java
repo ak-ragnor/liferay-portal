@@ -20,6 +20,8 @@ import com.liferay.sharepoint.rest.repository.internal.document.library.reposito
 import com.liferay.sharepoint.rest.repository.internal.document.library.repository.authorization.oauth2.SharepointRepositoryRequestState;
 import com.liferay.sharepoint.rest.repository.internal.document.library.repository.authorization.oauth2.SharepointRepositoryTokenBroker;
 
+import com.microsoft.aad.msal4j.MsalException;
+
 import jakarta.portlet.PortletRequest;
 import jakarta.portlet.PortletResponse;
 
@@ -190,9 +192,14 @@ public class SharepointRepositoryAuthorizationCapability
 				PortalUtil.getUserId(httpServletRequest),
 				sharepointRepositoryAuthenticationResult.getToken());
 		}
-		catch (ExecutionException | InterruptedException | MalformedURLException
-					exception) {
+		catch (ExecutionException | MsalException exception) {
+			_tokenStore.delete(
+				_sharepointRepositoryConfiguration.name(),
+				PortalUtil.getUserId(httpServletRequest));
 
+			throw new PortalException(exception);
+		}
+		catch (InterruptedException | MalformedURLException exception) {
 			throw new PortalException(exception);
 		}
 	}

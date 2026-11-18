@@ -66,18 +66,11 @@ public class DLViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 		throws PortletException {
 
 		try {
-			if (_pingFolderRepository(renderRequest, renderResponse)) {
-				return MVCRenderConstants.MVC_PATH_VALUE_SKIP_DISPATCH;
-			}
-
-			DLFolder rootDLFolder = _getRootDLFolderToAuthorize(
+			String authorizationMVCPath = _getAuthorizationMVCPath(
 				renderRequest, renderResponse);
 
-			if (rootDLFolder != null) {
-				renderRequest.setAttribute(
-					DLFolder.class.getName(), rootDLFolder);
-
-				return "/document_library/authorize_repository.jsp";
+			if (authorizationMVCPath != null) {
+				return authorizationMVCPath;
 			}
 
 			renderRequest.setAttribute(
@@ -110,8 +103,16 @@ public class DLViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 			return super.render(renderRequest, renderResponse);
 		}
 		catch (PortalException portalException) {
-			SessionErrors.add(
-				renderRequest, "repositoryPingFailed", portalException);
+			if (portalException instanceof
+					PrincipalException.MustBeAuthenticated) {
+
+				SessionErrors.add(
+					renderRequest, portalException.getClass(), portalException);
+			}
+			else {
+				SessionErrors.add(
+					renderRequest, "repositoryPingFailed", portalException);
+			}
 
 			SessionMessages.add(
 				renderRequest,
@@ -135,54 +136,49 @@ public class DLViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 		return "/document_library/view.jsp";
 	}
 
-	private Folder _getFolder(RenderRequest renderRequest)
-		throws PortalException {
-
-		long folderId = ParamUtil.getLong(renderRequest, "folderId");
-
-		if (folderId == DLFolderConstants.DEFAULT_PARENT_FOLDER_ID) {
-			return null;
-		}
-
-		return _dlAppService.getFolder(folderId);
-	}
-
-	private DLFolder _getRootDLFolderToAuthorize(
+	private String _getAuthorizationMVCPath(
 			RenderRequest renderRequest, RenderResponse renderResponse)
 		throws IOException, PortalException {
 
-		String mvcRenderCommandName = ParamUtil.getString(
-			renderRequest, "mvcRenderCommandName");
+		long folderId = ParamUtil.getLong(renderRequest, "folderId");
 
-		if (mvcRenderCommandName.equals("/document_library/view_folder") ||
-			(ParamUtil.getLong(renderRequest, "folderId") > 0)) {
+		long pingFolderId = folderId;
 
-			return null;
-		}
+		if ((pingFolderId <= 0) &&
+			!ParamUtil.getBoolean(renderRequest, "ignoreRootFolder")) {
 
-		DLFolder rootDLFolder = null;
-
-		try {
-			rootDLFolder = _dlFolderLocalService.fetchDLFolder(
-				ActionUtil.getRootFolderId(
-					_portal.getHttpServletRequest(renderRequest)));
-		}
-		catch (NoSuchFolderException noSuchFolderException) {
-			if (_log.isDebugEnabled()) {
-				_log.debug(noSuchFolderException);
+			try {
+				pingFolderId = ActionUtil.getRootFolderId(
+					_portal.getHttpServletRequest(renderRequest));
 			}
+			catch (NoSuchFolderException noSuchFolderException) {
+				if (_log.isDebugEnabled()) {
+					_log.debug(noSuchFolderException);
+				}
 
+				return null;
+			}
+		}
+
+		if (pingFolderId <= 0) {
 			return null;
 		}
 
-		if ((rootDLFolder == null) || !rootDLFolder.isMountPoint()) {
+		DLFolder dlFolder = _dlFolderLocalService.fetchDLFolder(pingFolderId);
+
+		if ((dlFolder == null) || !dlFolder.isMountPoint()) {
 			return null;
 		}
 
 		Repository repository = RepositoryProviderUtil.getRepository(
-			rootDLFolder.getRepositoryId());
+			dlFolder.getRepositoryId());
 
 		if (!repository.isCapabilityProvided(AuthorizationCapability.class)) {
+			if (folderId > 0) {
+				_dlAppService.getFileEntriesCount(
+					dlFolder.getRepositoryId(), dlFolder.getFolderId());
+			}
+
 			return null;
 		}
 
@@ -197,60 +193,36 @@ public class DLViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 		AuthorizationCapability authorizationCapability =
 			repository.getCapability(AuthorizationCapability.class);
 
-		if (!authorizationCapability.hasCustomRedirectFlow(
+		if ((folderId <= 0) &&
+			authorizationCapability.hasCustomRedirectFlow(
 				renderRequest, renderResponse)) {
 
-			return null;
+			renderRequest.setAttribute(DLFolder.class.getName(), dlFolder);
+
+			return "/document_library/authorize_repository.jsp";
 		}
 
-		return rootDLFolder;
+		authorizationCapability.authorize(renderRequest, renderResponse);
+
+		if (authorizationCapability.hasCustomRedirectFlow(
+				renderRequest, renderResponse)) {
+
+			return MVCRenderConstants.MVC_PATH_VALUE_SKIP_DISPATCH;
+		}
+
+		return null;
 	}
 
-	private boolean _pingFolderRepository(
-			RenderRequest renderRequest, RenderResponse renderResponse)
-		throws IOException, PortalException {
-
-		String mvcRenderCommandName = ParamUtil.getString(
-			renderRequest, "mvcRenderCommandName");
-
-		if (!mvcRenderCommandName.equals("/document_library/view_folder")) {
-			return false;
-		}
+	private Folder _getFolder(RenderRequest renderRequest)
+		throws PortalException {
 
 		long folderId = ParamUtil.getLong(renderRequest, "folderId");
 
 		if (folderId == DLFolderConstants.DEFAULT_PARENT_FOLDER_ID) {
-			return false;
+			return null;
 		}
 
-		DLFolder dlFolder = _dlFolderLocalService.fetchDLFolder(folderId);
-
-		if ((dlFolder == null) || !dlFolder.isMountPoint()) {
-			return false;
-		}
-
-		Repository repository = RepositoryProviderUtil.getRepository(
-			dlFolder.getRepositoryId());
-
-		if (repository.isCapabilityProvided(AuthorizationCapability.class)) {
-			AuthorizationCapability authorizationCapability =
-				repository.getCapability(AuthorizationCapability.class);
-
-			if (!authorizationCapability.hasCustomRedirectFlow(
-					renderRequest, renderResponse)) {
-
-				return false;
-			}
-
-			authorizationCapability.authorize(renderRequest, renderResponse);
-
-			return true;
-		}
-
-		_dlAppService.getFileEntriesCount(
-			dlFolder.getRepositoryId(), dlFolder.getFolderId());
-
-		return false;
+		return _dlAppService.getFolder(folderId);
 	}
 
 	private static final Log _log = LogFactoryUtil.getLog(

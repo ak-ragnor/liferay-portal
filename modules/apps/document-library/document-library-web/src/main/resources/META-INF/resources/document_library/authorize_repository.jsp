@@ -20,5 +20,6 @@ DLFolder dlFolder = (DLFolder)request.getAttribute(DLFolder.class.getName());
 	displayType="primary"
 	href='<%= HttpComponentsUtil.addParameter(viewFolderURL, "saveLastPath", false) %>'
 	label='<%= LanguageUtil.format(request, "authorize-x", dlFolder.getName(), false) %>'
+	translated="<%= false %>"
 	type="button"
 />
