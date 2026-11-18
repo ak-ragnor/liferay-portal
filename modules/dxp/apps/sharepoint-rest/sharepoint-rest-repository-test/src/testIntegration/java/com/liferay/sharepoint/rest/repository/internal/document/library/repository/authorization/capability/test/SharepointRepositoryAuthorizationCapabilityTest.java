@@ -10,6 +10,7 @@ import com.liferay.document.library.constants.DLPortletKeys;
 import com.liferay.document.library.kernel.model.DLFolder;
 import com.liferay.document.library.kernel.model.DLFolderConstants;
 import com.liferay.document.library.kernel.service.DLAppLocalService;
+import com.liferay.document.library.repository.authorization.oauth2.OAuth2AuthorizationException;
 import com.liferay.document.library.repository.authorization.oauth2.Token;
 import com.liferay.document.library.repository.authorization.oauth2.TokenStore;
 import com.liferay.layout.test.util.LayoutTestUtil;
@@ -23,10 +24,14 @@ import com.liferay.portal.kernel.portlet.PortletPreferencesFactoryUtil;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCRenderCommand;
 import com.liferay.portal.kernel.portlet.bridges.mvc.constants.MVCRenderConstants;
 import com.liferay.portal.kernel.repository.model.Folder;
+import com.liferay.portal.kernel.security.auth.PrincipalException;
 import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
 import com.liferay.portal.kernel.service.CompanyLocalService;
 import com.liferay.portal.kernel.service.RepositoryLocalService;
+import com.liferay.portal.kernel.servlet.SessionErrors;
+import com.liferay.portal.kernel.struts.StrutsAction;
+import com.liferay.portal.kernel.test.AssertUtils;
 import com.liferay.portal.kernel.test.TestInfo;
 import com.liferay.portal.kernel.test.portlet.MockLiferayPortletRenderRequest;
 import com.liferay.portal.kernel.test.portlet.MockLiferayPortletRenderResponse;
@@ -123,7 +128,9 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 
 		ConfigurationTestUtil.deleteFactoryConfiguration(_pid, _FACTORY_PID);
 
-		_tokenStore.delete(_name, TestPropsValues.getUserId());
+		if (_tokenStore.get(_name, TestPropsValues.getUserId()) != null) {
+			_tokenStore.delete(_name, TestPropsValues.getUserId());
+		}
 	}
 
 	@Test
@@ -153,31 +160,55 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 		return layout;
 	}
 
-	private void _assertRenderReadsRepository(
-			Layout layout, MockHttpServletRequest mockHttpServletRequest)
+	private void _assertRenderFails(
+			String key, Layout layout,
+			MockHttpServletRequest mockHttpServletRequest, boolean signedIn)
 		throws Exception {
 
 		MockLiferayPortletRenderResponse mockLiferayPortletRenderResponse =
 			new MockLiferayPortletRenderResponse();
 
-		try {
+		Assert.assertEquals(
+			"/document_library/error.jsp",
 			_render(
 				layout, mockHttpServletRequest,
-				mockLiferayPortletRenderResponse, true);
-
-			Assert.fail();
-		}
-		catch (RuntimeException runtimeException) {
-			Class<?> clazz = runtimeException.getClass();
-
-			Assert.assertEquals(
-				"com.microsoft.aad.msal4j.MsalClientException",
-				clazz.getName());
-		}
+				mockLiferayPortletRenderResponse, signedIn));
+		Assert.assertNull(_getRedirectedURL(mockLiferayPortletRenderResponse));
 
 		Assert.assertNull(
 			mockHttpServletRequest.getAttribute(DLFolder.class.getName()));
-		Assert.assertNull(_getRedirectedURL(mockLiferayPortletRenderResponse));
+		Assert.assertTrue(
+			SessionErrors.contains(
+				_createMockLiferayPortletRenderRequest(mockHttpServletRequest),
+				key));
+	}
+
+	private MockLiferayPortletRenderRequest
+		_createMockLiferayPortletRenderRequest(
+			MockHttpServletRequest mockHttpServletRequest) {
+
+		return new MockLiferayPortletRenderRequest(mockHttpServletRequest) {
+
+			@Override
+			public String getPortletName() {
+				return DLPortletKeys.DOCUMENT_LIBRARY;
+			}
+
+		};
+	}
+
+	private MockHttpServletRequest _createViewFolderMockHttpServletRequest(
+		long folderId) {
+
+		MockHttpServletRequest mockHttpServletRequest =
+			new MockHttpServletRequest();
+
+		mockHttpServletRequest.addParameter(
+			"folderId", String.valueOf(folderId));
+		mockHttpServletRequest.addParameter(
+			"mvcRenderCommandName", "/document_library/view_folder");
+
+		return mockHttpServletRequest;
 	}
 
 	private String _getRedirectedURL(
@@ -220,14 +251,7 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 		throws Exception {
 
 		MockLiferayPortletRenderRequest mockLiferayPortletRenderRequest =
-			new MockLiferayPortletRenderRequest(mockHttpServletRequest) {
-
-				@Override
-				public String getPortletName() {
-					return DLPortletKeys.DOCUMENT_LIBRARY;
-				}
-
-			};
+			_createMockLiferayPortletRenderRequest(mockHttpServletRequest);
 
 		mockLiferayPortletRenderRequest.setAttribute(
 			StringBundler.concat(
@@ -249,6 +273,39 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 
 		return _dlViewMVCRenderCommand.render(
 			mockLiferayPortletRenderRequest, mockLiferayPortletRenderResponse);
+	}
+
+	private void _saveToken() throws Exception {
+		_tokenStore.save(
+			_name, TestPropsValues.getUserId(),
+			new Token() {
+
+				@Override
+				public String getAccessToken() {
+					return _accessToken;
+				}
+
+				@Override
+				public Date getExpirationDate() {
+					return null;
+				}
+
+				@Override
+				public String getRefreshToken() {
+					return _refreshToken;
+				}
+
+				@Override
+				public boolean isExpired() {
+					return false;
+				}
+
+				private final String _accessToken =
+					RandomTestUtil.randomString();
+				private final String _refreshToken =
+					RandomTestUtil.randomString();
+
+			});
 	}
 
 	private void _testAuthorize() throws Exception {
@@ -275,14 +332,22 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 
 		Assert.assertNull(_getRedirectedURL(mockLiferayPortletRenderResponse));
 
+		MockHttpServletRequest homeMockHttpServletRequest =
+			_createViewFolderMockHttpServletRequest(
+				DLFolderConstants.DEFAULT_PARENT_FOLDER_ID);
+		MockLiferayPortletRenderResponse homeMockLiferayPortletRenderResponse =
+			new MockLiferayPortletRenderResponse();
+
+		Assert.assertEquals(
+			"/document_library/authorize_repository.jsp",
+			_render(
+				layout, homeMockHttpServletRequest,
+				homeMockLiferayPortletRenderResponse, true));
+		Assert.assertNull(
+			_getRedirectedURL(homeMockLiferayPortletRenderResponse));
+
 		MockHttpServletRequest viewFolderMockHttpServletRequest =
-			new MockHttpServletRequest();
-
-		viewFolderMockHttpServletRequest.addParameter(
-			"folderId", String.valueOf(mountFolder.getFolderId()));
-		viewFolderMockHttpServletRequest.addParameter(
-			"mvcRenderCommandName", "/document_library/view_folder");
-
+			_createViewFolderMockHttpServletRequest(mountFolder.getFolderId());
 		MockLiferayPortletRenderResponse
 			viewFolderMockLiferayPortletRenderResponse =
 				new MockLiferayPortletRenderResponse();
@@ -296,6 +361,21 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 			StringUtil.startsWith(
 				_getRedirectedURL(viewFolderMockLiferayPortletRenderResponse),
 				"https://login.microsoftonline.com"));
+
+		MockHttpServletRequest callbackMockHttpServletRequest =
+			new MockHttpServletRequest();
+
+		callbackMockHttpServletRequest.setParameter(
+			"code", RandomTestUtil.randomString());
+		callbackMockHttpServletRequest.setSession(
+			viewFolderMockHttpServletRequest.getSession());
+
+		AssertUtils.assertFailure(
+			OAuth2AuthorizationException.InvalidState.class,
+			"The resource owner returned an invalid state value: The " +
+				"Sharepoint server returned an invalid state",
+			() -> _strutsAction.execute(
+				callbackMockHttpServletRequest, new MockHttpServletResponse()));
 	}
 
 	private void _testAuthorizeWhenRootFolderDoesNotExist() throws Exception {
@@ -334,69 +414,42 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 	}
 
 	private void _testAuthorizeWhenUserHasToken() throws Exception {
-		_tokenStore.save(
-			_name, TestPropsValues.getUserId(),
-			new Token() {
-
-				@Override
-				public String getAccessToken() {
-					return _accessToken;
-				}
-
-				@Override
-				public Date getExpirationDate() {
-					return null;
-				}
-
-				@Override
-				public String getRefreshToken() {
-					return _refreshToken;
-				}
-
-				@Override
-				public boolean isExpired() {
-					return false;
-				}
-
-				private final String _accessToken =
-					RandomTestUtil.randomString();
-				private final String _refreshToken =
-					RandomTestUtil.randomString();
-
-			});
-
 		Folder mountFolder = _dlAppLocalService.getMountFolder(
 			_repository.getRepositoryId());
 
 		Layout layout = _addLayout(mountFolder.getExternalReferenceCode());
 
-		_assertRenderReadsRepository(layout, new MockHttpServletRequest());
+		_saveToken();
 
-		MockHttpServletRequest viewFolderMockHttpServletRequest =
-			new MockHttpServletRequest();
+		_assertRenderFails(
+			"repositoryPingFailed", layout, new MockHttpServletRequest(), true);
 
-		viewFolderMockHttpServletRequest.addParameter(
-			"folderId", String.valueOf(mountFolder.getFolderId()));
-		viewFolderMockHttpServletRequest.addParameter(
-			"mvcRenderCommandName", "/document_library/view_folder");
+		Assert.assertNull(_tokenStore.get(_name, TestPropsValues.getUserId()));
 
-		_assertRenderReadsRepository(layout, viewFolderMockHttpServletRequest);
+		_saveToken();
+
+		_assertRenderFails(
+			"repositoryPingFailed", layout,
+			_createViewFolderMockHttpServletRequest(mountFolder.getFolderId()),
+			true);
+
+		Assert.assertNull(_tokenStore.get(_name, TestPropsValues.getUserId()));
+
+		Assert.assertEquals(
+			"/document_library/authorize_repository.jsp",
+			_render(
+				layout, new MockHttpServletRequest(),
+				new MockLiferayPortletRenderResponse(), true));
 	}
 
 	private void _testAuthorizeWhenUserIsNotSignedIn() throws Exception {
 		Folder mountFolder = _dlAppLocalService.getMountFolder(
 			_repository.getRepositoryId());
 
-		MockLiferayPortletRenderResponse mockLiferayPortletRenderResponse =
-			new MockLiferayPortletRenderResponse();
-
-		Assert.assertEquals(
-			"/document_library/error.jsp",
-			_render(
-				_addLayout(mountFolder.getExternalReferenceCode()),
-				new MockHttpServletRequest(), mockLiferayPortletRenderResponse,
-				false));
-		Assert.assertNull(_getRedirectedURL(mockLiferayPortletRenderResponse));
+		_assertRenderFails(
+			PrincipalException.MustBeAuthenticated.class.getName(),
+			_addLayout(mountFolder.getExternalReferenceCode()),
+			new MockHttpServletRequest(), false);
 	}
 
 	private static final String _FACTORY_PID =
@@ -426,6 +479,9 @@ public class SharepointRepositoryAuthorizationCapabilityTest {
 
 	@Inject
 	private RepositoryLocalService _repositoryLocalService;
+
+	@Inject(filter = "path=/document_library/sharepoint/oauth2")
+	private StrutsAction _strutsAction;
 
 	@Inject
 	private TokenStore _tokenStore;
