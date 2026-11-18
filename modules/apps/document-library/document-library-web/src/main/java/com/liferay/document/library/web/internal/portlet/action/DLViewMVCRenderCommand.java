@@ -6,6 +6,7 @@
 package com.liferay.document.library.web.internal.portlet.action;
 
 import com.liferay.document.library.constants.DLPortletKeys;
+import com.liferay.document.library.kernel.exception.NoSuchFolderException;
 import com.liferay.document.library.kernel.model.DLFolder;
 import com.liferay.document.library.kernel.model.DLFolderConstants;
 import com.liferay.document.library.kernel.service.DLAppService;
@@ -20,13 +21,18 @@ import com.liferay.document.library.web.internal.helper.DLTrashHelper;
 import com.liferay.dynamic.data.mapping.service.DDMStructureLinkLocalService;
 import com.liferay.dynamic.data.mapping.service.DDMStructureService;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.log.Log;
+import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCRenderCommand;
 import com.liferay.portal.kernel.portlet.bridges.mvc.constants.MVCRenderConstants;
 import com.liferay.portal.kernel.portlet.toolbar.contributor.PortletToolbarContributor;
 import com.liferay.portal.kernel.repository.Repository;
 import com.liferay.portal.kernel.repository.RepositoryProviderUtil;
 import com.liferay.portal.kernel.repository.model.Folder;
+import com.liferay.portal.kernel.security.auth.PrincipalException;
 import com.liferay.portal.kernel.servlet.SessionErrors;
+import com.liferay.portal.kernel.servlet.SessionMessages;
+import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.util.ParamUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.WebKeys;
@@ -64,6 +70,16 @@ public class DLViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 				return MVCRenderConstants.MVC_PATH_VALUE_SKIP_DISPATCH;
 			}
 
+			DLFolder rootDLFolder = _getRootDLFolderToAuthorize(
+				renderRequest, renderResponse);
+
+			if (rootDLFolder != null) {
+				renderRequest.setAttribute(
+					DLFolder.class.getName(), rootDLFolder);
+
+				return "/document_library/authorize_repository.jsp";
+			}
+
 			renderRequest.setAttribute(
 				DLWebKeys.DOCUMENT_LIBRARY_PORTLET_TOOLBAR_CONTRIBUTOR,
 				_dlPortletToolbarContributor);
@@ -97,6 +113,11 @@ public class DLViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 			SessionErrors.add(
 				renderRequest, "repositoryPingFailed", portalException);
 
+			SessionMessages.add(
+				renderRequest,
+				_portal.getPortletId(renderRequest) +
+					SessionMessages.KEY_SUFFIX_HIDE_DEFAULT_ERROR_MESSAGE);
+
 			return "/document_library/error.jsp";
 		}
 		catch (IOException ioException) {
@@ -124,6 +145,65 @@ public class DLViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 		}
 
 		return _dlAppService.getFolder(folderId);
+	}
+
+	private DLFolder _getRootDLFolderToAuthorize(
+			RenderRequest renderRequest, RenderResponse renderResponse)
+		throws IOException, PortalException {
+
+		String mvcRenderCommandName = ParamUtil.getString(
+			renderRequest, "mvcRenderCommandName");
+
+		if (mvcRenderCommandName.equals("/document_library/view_folder") ||
+			(ParamUtil.getLong(renderRequest, "folderId") > 0)) {
+
+			return null;
+		}
+
+		DLFolder rootDLFolder = null;
+
+		try {
+			rootDLFolder = _dlFolderLocalService.fetchDLFolder(
+				ActionUtil.getRootFolderId(
+					_portal.getHttpServletRequest(renderRequest)));
+		}
+		catch (NoSuchFolderException noSuchFolderException) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(noSuchFolderException);
+			}
+
+			return null;
+		}
+
+		if ((rootDLFolder == null) || !rootDLFolder.isMountPoint()) {
+			return null;
+		}
+
+		Repository repository = RepositoryProviderUtil.getRepository(
+			rootDLFolder.getRepositoryId());
+
+		if (!repository.isCapabilityProvided(AuthorizationCapability.class)) {
+			return null;
+		}
+
+		ThemeDisplay themeDisplay = (ThemeDisplay)renderRequest.getAttribute(
+			WebKeys.THEME_DISPLAY);
+
+		if (!themeDisplay.isSignedIn()) {
+			throw new PrincipalException.MustBeAuthenticated(
+				themeDisplay.getUserId());
+		}
+
+		AuthorizationCapability authorizationCapability =
+			repository.getCapability(AuthorizationCapability.class);
+
+		if (!authorizationCapability.hasCustomRedirectFlow(
+				renderRequest, renderResponse)) {
+
+			return null;
+		}
+
+		return rootDLFolder;
 	}
 
 	private boolean _pingFolderRepository(
@@ -156,10 +236,15 @@ public class DLViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 			AuthorizationCapability authorizationCapability =
 				repository.getCapability(AuthorizationCapability.class);
 
+			if (!authorizationCapability.hasCustomRedirectFlow(
+					renderRequest, renderResponse)) {
+
+				return false;
+			}
+
 			authorizationCapability.authorize(renderRequest, renderResponse);
 
-			return authorizationCapability.hasCustomRedirectFlow(
-				renderRequest, renderResponse);
+			return true;
 		}
 
 		_dlAppService.getFileEntriesCount(
@@ -167,6 +252,9 @@ public class DLViewMVCRenderCommand extends BaseFolderMVCRenderCommand {
 
 		return false;
 	}
+
+	private static final Log _log = LogFactoryUtil.getLog(
+		DLViewMVCRenderCommand.class);
 
 	@Reference
 	private DDMStructureLinkLocalService _ddmStructureLinkLocalService;
