@@ -5,14 +5,18 @@
 
 package com.liferay.asset.internal.service;
 
+import com.liferay.asset.entry.rel.model.AssetEntryAssetCategoryRel;
 import com.liferay.asset.entry.rel.service.AssetEntryAssetCategoryRelLocalService;
 import com.liferay.asset.kernel.model.AssetEntry;
 import com.liferay.asset.kernel.service.AssetCategoryLocalService;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.ServiceWrapper;
+import com.liferay.portal.kernel.util.SetUtil;
 
+import java.util.Collections;
 import java.util.Date;
+import java.util.Set;
 
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
@@ -113,18 +117,11 @@ public class AssetEntryLocalServiceWrapper
 		if ((categoryIds != null) &&
 			((categoryIds.length > 0) || _hasAssetCategoryRels(entry))) {
 
-			categoryIds = _assetCategoryLocalService.getViewableCategoryIds(
-				className, classPK, categoryIds);
-
-			_assetEntryAssetCategoryRelLocalService.
-				deleteAssetEntryAssetCategoryRelByAssetEntryId(
-					entry.getEntryId());
-
-			for (long categoryId : categoryIds) {
-				_assetEntryAssetCategoryRelLocalService.
-					addAssetEntryAssetCategoryRel(
-						entry.getEntryId(), categoryId);
-			}
+			_updateAssetEntryAssetCategoryRels(
+				entry,
+				_assetCategoryLocalService.getViewableCategoryIds(
+					className, classPK, categoryIds),
+				serviceContext);
 		}
 
 		return entry;
@@ -143,6 +140,44 @@ public class AssetEntryLocalServiceWrapper
 		}
 
 		return false;
+	}
+
+	private void _updateAssetEntryAssetCategoryRels(
+			AssetEntry entry, long[] categoryIds, ServiceContext serviceContext)
+		throws PortalException {
+
+		Set<Long> newCategoryIds = SetUtil.fromArray(categoryIds);
+		boolean modified = false;
+
+		for (AssetEntryAssetCategoryRel assetEntryAssetCategoryRel :
+				_assetEntryAssetCategoryRelLocalService.
+					getAssetEntryAssetCategoryRelsByAssetEntryId(
+						entry.getEntryId())) {
+
+			if (newCategoryIds.remove(
+					assetEntryAssetCategoryRel.getAssetCategoryId())) {
+
+				continue;
+			}
+
+			_assetEntryAssetCategoryRelLocalService.
+				deleteAssetEntryAssetCategoryRel(assetEntryAssetCategoryRel);
+
+			modified = true;
+		}
+
+		for (long categoryId : newCategoryIds) {
+			_assetEntryAssetCategoryRelLocalService.
+				addAssetEntryAssetCategoryRel(entry.getEntryId(), categoryId);
+
+			modified = true;
+		}
+
+		if (modified &&
+			((serviceContext == null) || serviceContext.isIndexingEnabled())) {
+
+			reindex(Collections.singletonList(entry));
+		}
 	}
 
 	@Reference
