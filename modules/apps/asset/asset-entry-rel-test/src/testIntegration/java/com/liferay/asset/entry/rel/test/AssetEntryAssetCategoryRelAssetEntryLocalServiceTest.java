@@ -126,12 +126,12 @@ public class AssetEntryAssetCategoryRelAssetEntryLocalServiceTest {
 		Assert.assertEquals(
 			updatedAssetEntryAssetCategoryRelIds.toString(), 2,
 			updatedAssetEntryAssetCategoryRelIds.size());
-		Assert.assertEquals(
-			assetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]),
-			updatedAssetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]));
 		Assert.assertNotEquals(
 			assetEntryAssetCategoryRelIds.get(_assetCategoryIds[0]),
 			updatedAssetEntryAssetCategoryRelIds.get(_assetCategoryIds[0]));
+		Assert.assertEquals(
+			assetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]),
+			updatedAssetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]));
 	}
 
 	@Test
