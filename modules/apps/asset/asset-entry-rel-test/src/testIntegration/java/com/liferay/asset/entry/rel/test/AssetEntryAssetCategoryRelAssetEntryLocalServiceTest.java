@@ -6,8 +6,11 @@
 package com.liferay.asset.entry.rel.test;
 
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
+import com.liferay.asset.entry.rel.model.AssetEntryAssetCategoryRel;
+import com.liferay.asset.entry.rel.service.AssetEntryAssetCategoryRelLocalService;
 import com.liferay.asset.kernel.model.AssetCategory;
 import com.liferay.asset.kernel.model.AssetCategoryConstants;
+import com.liferay.asset.kernel.model.AssetEntry;
 import com.liferay.asset.kernel.model.AssetVocabulary;
 import com.liferay.asset.kernel.service.AssetCategoryLocalService;
 import com.liferay.asset.kernel.service.AssetEntryLocalService;
@@ -21,6 +24,7 @@ import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.security.permission.PermissionCheckerFactoryUtil;
 import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
 import com.liferay.portal.kernel.service.ServiceContext;
+import com.liferay.portal.kernel.test.TestInfo;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
 import com.liferay.portal.kernel.test.rule.DeleteAfterTestRun;
 import com.liferay.portal.kernel.test.util.GroupTestUtil;
@@ -36,7 +40,9 @@ import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -80,6 +86,52 @@ public class AssetEntryAssetCategoryRelAssetEntryLocalServiceTest {
 		for (int i = 0; i < _assetCategoryIds.length; i++) {
 			_assetCategoryIds[i] = _addAssetCategory(serviceContext);
 		}
+	}
+
+	@Test
+	@TestInfo("LPD-116288")
+	public void testUpdateEntry() throws Exception {
+		AssetEntry assetEntry = _updateEntry(_assetCategoryIds);
+
+		Map<Long, Long> assetEntryAssetCategoryRelIds =
+			_getAssetEntryAssetCategoryRelIds(assetEntry);
+
+		Assert.assertEquals(
+			assetEntryAssetCategoryRelIds.toString(), 2,
+			assetEntryAssetCategoryRelIds.size());
+
+		_updateEntry(_assetCategoryIds);
+
+		Assert.assertEquals(
+			assetEntryAssetCategoryRelIds,
+			_getAssetEntryAssetCategoryRelIds(assetEntry));
+
+		_updateEntry(new long[] {_assetCategoryIds[1]});
+
+		Map<Long, Long> updatedAssetEntryAssetCategoryRelIds =
+			_getAssetEntryAssetCategoryRelIds(assetEntry);
+
+		Assert.assertEquals(
+			updatedAssetEntryAssetCategoryRelIds.toString(), 1,
+			updatedAssetEntryAssetCategoryRelIds.size());
+		Assert.assertEquals(
+			assetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]),
+			updatedAssetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]));
+
+		_updateEntry(_assetCategoryIds);
+
+		updatedAssetEntryAssetCategoryRelIds =
+			_getAssetEntryAssetCategoryRelIds(assetEntry);
+
+		Assert.assertEquals(
+			updatedAssetEntryAssetCategoryRelIds.toString(), 2,
+			updatedAssetEntryAssetCategoryRelIds.size());
+		Assert.assertEquals(
+			assetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]),
+			updatedAssetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]));
+		Assert.assertNotEquals(
+			assetEntryAssetCategoryRelIds.get(_assetCategoryIds[0]),
+			updatedAssetEntryAssetCategoryRelIds.get(_assetCategoryIds[0]));
 	}
 
 	@Test
@@ -164,12 +216,7 @@ public class AssetEntryAssetCategoryRelAssetEntryLocalServiceTest {
 	private void _assertSize(int expectedSize, long[] assetCategoryIds)
 		throws Exception {
 
-		assetEntryLocalService.updateEntry(
-			_user.getUserId(), _group.getGroupId(), _user.getCreateDate(),
-			_user.getModifiedDate(), User.class.getName(), _user.getUserId(),
-			_user.getUuid(), 0, assetCategoryIds, null, true, false, null, null,
-			null, null, null, _user.getFullName(), null, null, null, null, 0, 0,
-			null);
+		_updateEntry(assetCategoryIds);
 
 		List<AssetCategory> assetCategories =
 			_assetCategoryLocalService.getCategories(
@@ -179,6 +226,33 @@ public class AssetEntryAssetCategoryRelAssetEntryLocalServiceTest {
 			assetCategories.toString(), expectedSize, assetCategories.size());
 	}
 
+	private Map<Long, Long> _getAssetEntryAssetCategoryRelIds(
+		AssetEntry assetEntry) {
+
+		Map<Long, Long> assetEntryAssetCategoryRelIds = new HashMap<>();
+
+		for (AssetEntryAssetCategoryRel assetEntryAssetCategoryRel :
+				_assetEntryAssetCategoryRelLocalService.
+					getAssetEntryAssetCategoryRelsByAssetEntryId(
+						assetEntry.getEntryId())) {
+
+			assetEntryAssetCategoryRelIds.put(
+				assetEntryAssetCategoryRel.getAssetCategoryId(),
+				assetEntryAssetCategoryRel.getAssetEntryAssetCategoryRelId());
+		}
+
+		return assetEntryAssetCategoryRelIds;
+	}
+
+	private AssetEntry _updateEntry(long[] assetCategoryIds) throws Exception {
+		return assetEntryLocalService.updateEntry(
+			_user.getUserId(), _group.getGroupId(), _user.getCreateDate(),
+			_user.getModifiedDate(), User.class.getName(), _user.getUserId(),
+			_user.getUuid(), 0, assetCategoryIds, null, true, false, null, null,
+			null, null, null, _user.getFullName(), null, null, null, null, 0, 0,
+			null);
+	}
+
 	@DeleteAfterTestRun
 	private final List<AssetCategory> _assetCategories = new ArrayList<>();
 
@@ -186,6 +260,10 @@ public class AssetEntryAssetCategoryRelAssetEntryLocalServiceTest {
 
 	@Inject
 	private AssetCategoryLocalService _assetCategoryLocalService;
+
+	@Inject
+	private AssetEntryAssetCategoryRelLocalService
+		_assetEntryAssetCategoryRelLocalService;
 
 	@DeleteAfterTestRun
 	private AssetVocabulary _assetVocabulary;
