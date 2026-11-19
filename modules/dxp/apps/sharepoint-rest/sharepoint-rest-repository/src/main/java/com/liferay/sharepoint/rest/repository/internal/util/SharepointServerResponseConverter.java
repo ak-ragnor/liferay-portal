@@ -52,6 +52,12 @@ public class SharepointServerResponseConverter {
 			StringPool.SLASH, siteAbsoluteURL, libraryPath);
 	}
 
+	public boolean getEnableMinorVersions(JSONObject jsonObject) {
+		JSONObject dJSONObject = jsonObject.getJSONObject("d");
+
+		return dJSONObject.getBoolean("EnableMinorVersions");
+	}
+
 	public <T extends ExtRepositoryObject> List<T> getExtRepositoryFileEntries(
 		JSONObject jsonObject) {
 
