@@ -12,11 +12,13 @@ import {siteSettingsPagesTest} from '../../../fixtures/siteSettingsPagesTest';
 import {changeManagementToolbarView} from '../../../utils/changeManagementToolbarView';
 import {clickAndExpectToBeVisible} from '../../../utils/clickAndExpectToBeVisible';
 import getGlobalSiteId from '../../../utils/getGlobalSiteId';
+import getRandomString from '../../../utils/getRandomString';
 import {PORTLET_URLS} from '../../../utils/portletUrls';
 import getBasicWebContentStructureId from '../../../utils/structured-content/getBasicWebContentStructureId';
 import {waitForAlert} from '../../../utils/waitForAlert';
 import {watchForDialog} from '../../../utils/watchForDialog';
 import {journalPagesTest} from './fixtures/journalPagesTest';
+import getDataStructureDefinition from './utils/getDataStructureDefinition';
 
 const test = mergeTests(
 	apiHelpersTest,
@@ -138,5 +140,69 @@ test(
 				webContent.articleId
 			);
 		}
+	}
+);
+
+test(
+	'Structure default values do not translate a new web content into the structure language',
+	{
+		tag: '@LPD-116782',
+	},
+	async ({
+		apiHelpers,
+		journalEditArticlePage,
+		journalEditStructureDefaultValuesPage,
+		page,
+		site,
+		siteSettingsLocalizationPage,
+	}) => {
+		const sharedValue = getRandomString();
+		const structureName = getRandomString();
+
+		await apiHelpers.dataEngine.createStructure(
+			site.id,
+			getDataStructureDefinition({
+				defaultLanguageId: 'en_US',
+				fields: [
+					{name: 'Localizable'},
+					{localizable: false, name: 'Shared'},
+				],
+				name: structureName,
+			})
+		);
+
+		await journalEditStructureDefaultValuesPage.goto({
+			siteUrl: site.friendlyUrlPath,
+			structureName,
+		});
+
+		await journalEditStructureDefaultValuesPage.fillTextField(
+			'Shared',
+			sharedValue
+		);
+
+		await journalEditStructureDefaultValuesPage.save();
+
+		await siteSettingsLocalizationPage.setCustomDefaultLanguage(
+			'ja_JP',
+			site.friendlyUrlPath
+		);
+
+		await journalEditArticlePage.goto({
+			siteUrl: site.friendlyUrlPath,
+			structureName,
+		});
+
+		await expect(
+			page.getByRole('textbox', {exact: true, name: 'Shared'})
+		).toHaveValue(sharedValue);
+
+		await clickAndExpectToBeVisible({
+			autoClick: false,
+			target: page.getByRole('option', {
+				name: 'English Language: Not Translated',
+			}),
+			trigger: page.getByLabel('Select a language, current'),
+		});
 	}
 );
