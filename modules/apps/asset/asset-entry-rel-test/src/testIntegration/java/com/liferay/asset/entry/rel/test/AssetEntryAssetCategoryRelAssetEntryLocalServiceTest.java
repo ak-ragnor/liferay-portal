@@ -8,6 +8,7 @@ package com.liferay.asset.entry.rel.test;
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.asset.entry.rel.model.AssetEntryAssetCategoryRel;
 import com.liferay.asset.entry.rel.service.AssetEntryAssetCategoryRelLocalService;
+import com.liferay.asset.entry.rel.util.comparator.AssetEntryAssetCategoryRelAssetEntryAssetCategoryRelIdComparator;
 import com.liferay.asset.kernel.model.AssetCategory;
 import com.liferay.asset.kernel.model.AssetCategoryConstants;
 import com.liferay.asset.kernel.model.AssetEntry;
@@ -16,6 +17,7 @@ import com.liferay.asset.kernel.service.AssetCategoryLocalService;
 import com.liferay.asset.kernel.service.AssetEntryLocalService;
 import com.liferay.asset.kernel.service.AssetVocabularyLocalService;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.ResourceConstants;
 import com.liferay.portal.kernel.model.User;
@@ -33,6 +35,7 @@ import com.liferay.portal.kernel.test.util.RoleTestUtil;
 import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.UserTestUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
+import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.test.rule.Inject;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
@@ -40,7 +43,7 @@ import com.liferay.portal.test.rule.PermissionCheckerMethodTestRule;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -93,45 +96,32 @@ public class AssetEntryAssetCategoryRelAssetEntryLocalServiceTest {
 	public void testUpdateEntry() throws Exception {
 		AssetEntry assetEntry = _updateEntry(_assetCategoryIds);
 
-		Map<Long, Long> assetEntryAssetCategoryRelIds =
-			_getAssetEntryAssetCategoryRelIds(assetEntry);
+		Map<Long, Long> assetEntryAssetCategoryRelIdsMap =
+			_getAssetEntryAssetCategoryRelIdsMap(assetEntry);
 
 		Assert.assertEquals(
-			assetEntryAssetCategoryRelIds.toString(), 2,
-			assetEntryAssetCategoryRelIds.size());
+			ListUtil.fromArray(_assetCategoryIds),
+			ListUtil.fromMapKeys(assetEntryAssetCategoryRelIdsMap));
 
 		_updateEntry(_assetCategoryIds);
 
 		Assert.assertEquals(
-			assetEntryAssetCategoryRelIds,
-			_getAssetEntryAssetCategoryRelIds(assetEntry));
+			assetEntryAssetCategoryRelIdsMap,
+			_getAssetEntryAssetCategoryRelIdsMap(assetEntry));
 
-		_updateEntry(new long[] {_assetCategoryIds[1]});
+		long[] assetCategoryIds = {_assetCategoryIds[1], _assetCategoryIds[0]};
 
-		Map<Long, Long> updatedAssetEntryAssetCategoryRelIds =
-			_getAssetEntryAssetCategoryRelIds(assetEntry);
+		_updateEntry(assetCategoryIds);
 
-		Assert.assertEquals(
-			updatedAssetEntryAssetCategoryRelIds.toString(), 1,
-			updatedAssetEntryAssetCategoryRelIds.size());
-		Assert.assertEquals(
-			assetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]),
-			updatedAssetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]));
-
-		_updateEntry(_assetCategoryIds);
-
-		updatedAssetEntryAssetCategoryRelIds =
-			_getAssetEntryAssetCategoryRelIds(assetEntry);
+		Map<Long, Long> updatedAssetEntryAssetCategoryRelIdsMap =
+			_getAssetEntryAssetCategoryRelIdsMap(assetEntry);
 
 		Assert.assertEquals(
-			updatedAssetEntryAssetCategoryRelIds.toString(), 2,
-			updatedAssetEntryAssetCategoryRelIds.size());
-		Assert.assertNotEquals(
-			assetEntryAssetCategoryRelIds.get(_assetCategoryIds[0]),
-			updatedAssetEntryAssetCategoryRelIds.get(_assetCategoryIds[0]));
+			ListUtil.fromArray(assetCategoryIds),
+			ListUtil.fromMapKeys(updatedAssetEntryAssetCategoryRelIdsMap));
 		Assert.assertEquals(
-			assetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]),
-			updatedAssetEntryAssetCategoryRelIds.get(_assetCategoryIds[1]));
+			assetEntryAssetCategoryRelIdsMap.get(_assetCategoryIds[1]),
+			updatedAssetEntryAssetCategoryRelIdsMap.get(_assetCategoryIds[1]));
 	}
 
 	@Test
@@ -226,22 +216,26 @@ public class AssetEntryAssetCategoryRelAssetEntryLocalServiceTest {
 			assetCategories.toString(), expectedSize, assetCategories.size());
 	}
 
-	private Map<Long, Long> _getAssetEntryAssetCategoryRelIds(
+	private Map<Long, Long> _getAssetEntryAssetCategoryRelIdsMap(
 		AssetEntry assetEntry) {
 
-		Map<Long, Long> assetEntryAssetCategoryRelIds = new HashMap<>();
+		Map<Long, Long> assetEntryAssetCategoryRelIdsMap =
+			new LinkedHashMap<>();
 
 		for (AssetEntryAssetCategoryRel assetEntryAssetCategoryRel :
 				_assetEntryAssetCategoryRelLocalService.
 					getAssetEntryAssetCategoryRelsByAssetEntryId(
-						assetEntry.getEntryId())) {
+						assetEntry.getEntryId(), QueryUtil.ALL_POS,
+						QueryUtil.ALL_POS,
+						AssetEntryAssetCategoryRelAssetEntryAssetCategoryRelIdComparator.
+							getInstance(true))) {
 
-			assetEntryAssetCategoryRelIds.put(
+			assetEntryAssetCategoryRelIdsMap.put(
 				assetEntryAssetCategoryRel.getAssetCategoryId(),
 				assetEntryAssetCategoryRel.getAssetEntryAssetCategoryRelId());
 		}
 
-		return assetEntryAssetCategoryRelIds;
+		return assetEntryAssetCategoryRelIdsMap;
 	}
 
 	private AssetEntry _updateEntry(long[] assetCategoryIds) throws Exception {
