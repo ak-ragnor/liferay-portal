@@ -17,7 +17,7 @@
 	displayType="borderless"
 	languageId="<%= journalEditArticleDisplayContext.getSelectedLanguageId() %>"
 	namespace="<%= liferayPortletResponse.getNamespace() %>"
-	persisted="<%= article != null %>"
+	persisted="<%= (article != null) && !article.isNew() %>"
 	submittable="<%= false %>"
 />
 
