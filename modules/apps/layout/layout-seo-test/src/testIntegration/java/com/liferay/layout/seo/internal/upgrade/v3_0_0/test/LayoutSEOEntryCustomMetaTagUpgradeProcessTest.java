@@ -210,8 +210,8 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcessTest
 
 		CTCollection ctCollection = _addCTCollection();
 
-		LayoutSEOEntry layoutSEOEntry = null;
 		long ddmStorageId = 0;
+		LayoutSEOEntry layoutSEOEntry = null;
 
 		try (SafeCloseable safeCloseable =
 				CTCollectionThreadLocal.setCTCollectionIdWithSafeCloseable(
@@ -222,7 +222,8 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcessTest
 			ddmStorageId = _ddmStorageEngineManager.create(
 				TestPropsValues.getCompanyId(), _ddmStructure.getStructureId(),
 				_createDDMFormValues(
-					_ddmStructure.getDDMForm(), "property3", "content3"),
+					_ddmStructure.getDDMForm(), "property3",
+					RandomTestUtil.randomString()),
 				ServiceContextTestUtil.getServiceContext(
 					_group.getGroupId(), TestPropsValues.getUserId()));
 		}
@@ -267,7 +268,8 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcessTest
 			_ddmStorageEngineManager.update(
 				_ddmStorageId,
 				_createDDMFormValues(
-					_ddmStructure.getDDMForm(), "property3", "content3"),
+					_ddmStructure.getDDMForm(), "property3",
+					RandomTestUtil.randomString()),
 				ServiceContextTestUtil.getServiceContext(
 					_group.getGroupId(), TestPropsValues.getUserId()));
 
@@ -374,11 +376,15 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcessTest
 
 	@Test
 	public void testUpgradeWithUnreadableDDMStorage() throws Exception {
-		_updateDDMStorageId(
-			_ddmStorageId, _addLayoutSEOEntry().getLayoutSEOEntryId());
+		LayoutSEOEntry layoutSEOEntry1 = _addLayoutSEOEntry();
 
 		_updateDDMStorageId(
-			Long.MAX_VALUE, _addLayoutSEOEntry().getLayoutSEOEntryId());
+			_ddmStorageId, layoutSEOEntry1.getLayoutSEOEntryId());
+
+		LayoutSEOEntry layoutSEOEntry2 = _addLayoutSEOEntry();
+
+		_updateDDMStorageId(
+			Long.MAX_VALUE, layoutSEOEntry2.getLayoutSEOEntryId());
 
 		try {
 			runUpgrade();

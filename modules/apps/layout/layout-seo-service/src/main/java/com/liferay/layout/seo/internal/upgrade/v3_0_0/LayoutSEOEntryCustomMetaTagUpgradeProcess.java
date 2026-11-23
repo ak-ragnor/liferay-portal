@@ -123,7 +123,7 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcess extends UpgradeProcess {
 						_addLayoutSEOEntryCustomMetaTags(
 							resultSet.getLong("companyId"), ctCollectionId,
 							resultSet.getLong("groupId"), layoutSEOEntryId,
-							properties, preparedStatement2);
+							preparedStatement2, properties);
 
 					if (ctCollectionId ==
 							CTConstants.CT_COLLECTION_ID_PRODUCTION) {
@@ -151,7 +151,7 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcess extends UpgradeProcess {
 					_addLayoutSEOEntryCustomMetaTags(
 						resultSet.getLong("companyId"), ctCollectionId,
 						resultSet.getLong("groupId"), layoutSEOEntryId,
-						properties, preparedStatement2));
+						preparedStatement2, properties));
 
 				List<Long> deletedLayoutSEOEntryCustomMetaTagIds =
 					deletedLayoutSEOEntryCustomMetaTagIdsMap.computeIfAbsent(
@@ -251,24 +251,24 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcess extends UpgradeProcess {
 	}
 
 	private List<Long> _addLayoutSEOEntryCustomMetaTags(
-			long companyId, long ctCollection, long groupId,
-			long layoutSEOEntryId, List<Map.Entry<String, String>> properties,
-			PreparedStatement preparedStatement)
+			long companyId, long ctCollectionId, long groupId,
+			long layoutSEOEntryId, PreparedStatement preparedStatement,
+			List<Map.Entry<String, String>> properties)
 		throws Exception {
 
 		List<Long> layoutSEOEntryCustomMetaTagIds = new ArrayList<>();
 
-		for (Map.Entry<String, String> property : properties) {
+		for (Map.Entry<String, String> entry : properties) {
 			long layoutSEOEntryCustomMetaTagId = increment();
 
 			preparedStatement.setLong(1, 0);
-			preparedStatement.setLong(2, ctCollection);
+			preparedStatement.setLong(2, ctCollectionId);
 			preparedStatement.setLong(3, groupId);
 			preparedStatement.setLong(4, companyId);
 			preparedStatement.setLong(5, layoutSEOEntryCustomMetaTagId);
 			preparedStatement.setLong(6, layoutSEOEntryId);
-			preparedStatement.setString(7, property.getKey());
-			preparedStatement.setString(8, property.getValue());
+			preparedStatement.setString(7, entry.getKey());
+			preparedStatement.setString(8, entry.getValue());
 
 			preparedStatement.addBatch();
 
