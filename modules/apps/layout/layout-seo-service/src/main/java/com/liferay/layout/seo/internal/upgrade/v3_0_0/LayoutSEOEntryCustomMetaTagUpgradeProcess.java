@@ -162,6 +162,10 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcess extends UpgradeProcess {
 						layoutSEOEntryId, Collections.emptyList()));
 			}
 
+			_addDeletedLayoutSEOEntryCustomMetaTagIds(
+				deletedLayoutSEOEntryCustomMetaTagIdsMap,
+				productionLayoutSEOEntryCustomMetaTagIdsMap);
+
 			preparedStatement2.executeBatch();
 
 			_addCTEntries(
@@ -246,6 +250,46 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcess extends UpgradeProcess {
 					null, ctCollection.getCtCollectionId(), classNameId,
 					layoutSEOEntryCustomMetaTag, ctCollection.getUserId(),
 					changeType);
+			}
+		}
+	}
+
+	private void _addDeletedLayoutSEOEntryCustomMetaTagIds(
+			Map<Long, List<Long>> deletedLayoutSEOEntryCustomMetaTagIdsMap,
+			Map<Long, List<Long>> productionLayoutSEOEntryCustomMetaTagIdsMap)
+		throws Exception {
+
+		try (PreparedStatement preparedStatement = connection.prepareStatement(
+				"select ctCollectionId, modelClassPK from CTEntry where " +
+					"modelClassNameId = ? and changeType = ?")) {
+
+			preparedStatement.setLong(
+				1, _classNameLocalService.getClassNameId(LayoutSEOEntry.class));
+			preparedStatement.setInt(2, CTConstants.CT_CHANGE_TYPE_DELETION);
+
+			try (ResultSet resultSet = preparedStatement.executeQuery()) {
+				while (resultSet.next()) {
+					long ctCollectionId = resultSet.getLong("ctCollectionId");
+
+					List<Long> layoutSEOEntryCustomMetaTagIds =
+						productionLayoutSEOEntryCustomMetaTagIdsMap.get(
+							resultSet.getLong("modelClassPK"));
+
+					if ((layoutSEOEntryCustomMetaTagIds == null) ||
+						(_getWritableCTCollectionId(ctCollectionId) !=
+							ctCollectionId)) {
+
+						continue;
+					}
+
+					List<Long> deletedLayoutSEOEntryCustomMetaTagIds =
+						deletedLayoutSEOEntryCustomMetaTagIdsMap.
+							computeIfAbsent(
+								ctCollectionId, key -> new ArrayList<>());
+
+					deletedLayoutSEOEntryCustomMetaTagIds.addAll(
+						layoutSEOEntryCustomMetaTagIds);
+				}
 			}
 		}
 	}
