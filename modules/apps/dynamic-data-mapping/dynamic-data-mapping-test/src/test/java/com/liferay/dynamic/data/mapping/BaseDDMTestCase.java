@@ -494,11 +494,17 @@ public abstract class BaseDDMTestCase {
 			new FieldSetDDMFormFieldType()
 		);
 
+		ImageDDMFormFieldType imageDDMFormFieldType =
+			new ImageDDMFormFieldType();
+
+		ReflectionTestUtil.setFieldValue(
+			imageDDMFormFieldType, "_jsonFactory", jsonFactory);
+
 		Mockito.when(
 			ddmFormFieldTypeServicesRegistry.getDDMFormFieldType(
 				Mockito.eq("image"))
 		).thenReturn(
-			new ImageDDMFormFieldType()
+			imageDDMFormFieldType
 		);
 
 		Mockito.when(
