@@ -38,6 +38,7 @@ import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.change.tracking.CTModel;
 import com.liferay.portal.kernel.service.ClassNameLocalService;
 import com.liferay.portal.kernel.service.GroupLocalService;
+import com.liferay.portal.kernel.service.LayoutLocalService;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.change.tracking.CTService;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
@@ -301,6 +302,44 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcessTest
 			TestPropsValues.getUserId(), ctCollection.getCtCollectionId());
 
 		_assertLayoutSEOEntryCustomMetaTags(layoutSEOEntry, "property3");
+	}
+
+	@Test
+	public void testUpgradeWithLayoutDeletedInPublication() throws Exception {
+		LayoutSEOEntry layoutSEOEntry = _addLayoutSEOEntry();
+
+		_updateDDMStorageId(
+			_ddmStorageId, layoutSEOEntry.getLayoutSEOEntryId());
+
+		CTCollection ctCollection = _addCTCollection();
+
+		try (SafeCloseable safeCloseable =
+				CTCollectionThreadLocal.setCTCollectionIdWithSafeCloseable(
+					ctCollection.getCtCollectionId())) {
+
+			_layoutLocalService.deleteLayout(
+				layoutSEOEntry.getGroupId(), layoutSEOEntry.isPrivateLayout(),
+				layoutSEOEntry.getLayoutId(),
+				ServiceContextTestUtil.getServiceContext(
+					_group.getGroupId(), TestPropsValues.getUserId()));
+		}
+
+		runUpgrade();
+
+		_assertLayoutSEOEntryCustomMetaTags(
+			layoutSEOEntry, "property1", "property2");
+
+		try (SafeCloseable safeCloseable =
+				CTCollectionThreadLocal.setCTCollectionIdWithSafeCloseable(
+					ctCollection.getCtCollectionId())) {
+
+			_assertLayoutSEOEntryCustomMetaTags(layoutSEOEntry);
+		}
+
+		_ctCollectionService.publishCTCollection(
+			TestPropsValues.getUserId(), ctCollection.getCtCollectionId());
+
+		_assertLayoutSEOEntryCustomMetaTags(layoutSEOEntry);
 	}
 
 	@Test
@@ -643,6 +682,9 @@ public class LayoutSEOEntryCustomMetaTagUpgradeProcessTest
 
 	@Inject
 	private GroupLocalService _groupLocalService;
+
+	@Inject
+	private LayoutLocalService _layoutLocalService;
 
 	@Inject
 	private LayoutSEOEntryLocalService _layoutSEOEntryLocalService;
