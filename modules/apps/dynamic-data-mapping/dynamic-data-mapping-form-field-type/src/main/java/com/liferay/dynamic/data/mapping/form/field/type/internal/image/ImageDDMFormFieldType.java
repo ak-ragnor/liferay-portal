@@ -9,9 +9,15 @@ import com.liferay.dynamic.data.mapping.form.field.type.BaseDDMFormFieldType;
 import com.liferay.dynamic.data.mapping.form.field.type.DDMFormFieldType;
 import com.liferay.dynamic.data.mapping.form.field.type.DDMFormFieldTypeSettings;
 import com.liferay.dynamic.data.mapping.form.field.type.constants.DDMFormFieldTypeConstants;
-import com.liferay.portal.kernel.util.StringUtil;
+import com.liferay.portal.kernel.json.JSONException;
+import com.liferay.portal.kernel.json.JSONFactory;
+import com.liferay.portal.kernel.json.JSONObject;
+import com.liferay.portal.kernel.log.Log;
+import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.util.Validator;
 
 import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
 
 /**
  * @author Carlos Lancha
@@ -49,13 +55,34 @@ public class ImageDDMFormFieldType extends BaseDDMFormFieldType {
 
 	@Override
 	public boolean isPredefinedValueEmpty(String value) {
-		if (super.isPredefinedValueEmpty(value) ||
-			StringUtil.equals(value, "{}")) {
-
+		if (super.isPredefinedValueEmpty(value)) {
 			return true;
 		}
 
-		return false;
+		try {
+			JSONObject jsonObject = _jsonFactory.createJSONObject(value);
+
+			for (String key : jsonObject.keySet()) {
+				if (Validator.isNotNull(jsonObject.getString(key))) {
+					return false;
+				}
+			}
+
+			return true;
+		}
+		catch (JSONException jsonException) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(jsonException);
+			}
+
+			return false;
+		}
 	}
+
+	private static final Log _log = LogFactoryUtil.getLog(
+		ImageDDMFormFieldType.class);
+
+	@Reference
+	private JSONFactory _jsonFactory;
 
 }

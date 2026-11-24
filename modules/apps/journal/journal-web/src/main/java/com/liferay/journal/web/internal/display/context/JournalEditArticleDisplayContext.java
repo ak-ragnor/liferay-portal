@@ -20,9 +20,11 @@ import com.liferay.dynamic.data.mapping.item.selector.DDMTemplateItemSelectorCri
 import com.liferay.dynamic.data.mapping.item.selector.DDMTemplateItemSelectorReturnType;
 import com.liferay.dynamic.data.mapping.model.DDMStructure;
 import com.liferay.dynamic.data.mapping.model.DDMTemplate;
+import com.liferay.dynamic.data.mapping.model.Value;
 import com.liferay.dynamic.data.mapping.service.DDMStructureLocalServiceUtil;
 import com.liferay.dynamic.data.mapping.service.DDMTemplateLocalServiceUtil;
 import com.liferay.dynamic.data.mapping.service.DDMTemplateServiceUtil;
+import com.liferay.dynamic.data.mapping.storage.DDMFormFieldValue;
 import com.liferay.dynamic.data.mapping.storage.DDMFormValues;
 import com.liferay.dynamic.data.mapping.util.DDMFormValuesToMapConverter;
 import com.liferay.frontend.taglib.clay.servlet.taglib.util.TabsItem;
@@ -58,7 +60,9 @@ import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
 import com.liferay.portal.kernel.json.JSONArray;
+import com.liferay.portal.kernel.json.JSONException;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
+import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.log.Log;
@@ -107,6 +111,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.text.Format;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -532,6 +537,8 @@ public class JournalEditArticleDisplayContext {
 					ddmStructure.getStructureId());
 
 			ddmFormValues = ddmStructureArticle.getDDMFormValues();
+
+			_removeBlankLocalizedValues(ddmFormValues);
 		}
 
 		if (ddmFormValues != null) {
@@ -1788,6 +1795,45 @@ public class JournalEditArticleDisplayContext {
 		return false;
 	}
 
+	private boolean _isEmptyValue(String value) {
+		if (Validator.isBlank(value)) {
+			return true;
+		}
+
+		try {
+			if (value.startsWith(StringPool.OPEN_BRACKET)) {
+				JSONArray jsonArray = JSONFactoryUtil.createJSONArray(value);
+
+				for (int i = 0; i < jsonArray.length(); i++) {
+					if (!_isEmptyValue(jsonArray.getString(i))) {
+						return false;
+					}
+				}
+
+				return true;
+			}
+
+			if (value.startsWith(StringPool.OPEN_CURLY_BRACE)) {
+				JSONObject jsonObject = JSONFactoryUtil.createJSONObject(value);
+
+				for (String key : jsonObject.keySet()) {
+					if (!_isEmptyValue(jsonObject.getString(key))) {
+						return false;
+					}
+				}
+
+				return true;
+			}
+		}
+		catch (JSONException jsonException) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(jsonException);
+			}
+		}
+
+		return false;
+	}
+
 	private boolean _isShowHeader() {
 		if (_showHeader != null) {
 			return _showHeader;
@@ -1854,6 +1900,33 @@ public class JournalEditArticleDisplayContext {
 		}
 
 		return false;
+	}
+
+	private void _removeBlankLocalizedValues(DDMFormValues ddmFormValues) {
+		if (ddmFormValues == null) {
+			return;
+		}
+
+		Map<String, List<DDMFormFieldValue>> ddmFormFieldValuesMap =
+			ddmFormValues.getDDMFormFieldValuesMap(true);
+
+		for (List<DDMFormFieldValue> ddmFormFieldValues :
+				ddmFormFieldValuesMap.values()) {
+
+			for (DDMFormFieldValue ddmFormFieldValue : ddmFormFieldValues) {
+				Value value = ddmFormFieldValue.getValue();
+
+				if ((value == null) || !value.isLocalized()) {
+					continue;
+				}
+
+				Map<Locale, String> values = value.getValues();
+
+				Collection<String> strings = values.values();
+
+				strings.removeIf(this::_isEmptyValue);
+			}
+		}
 	}
 
 	private static final int _MAX_SITES = 6;
