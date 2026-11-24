@@ -144,6 +144,7 @@ import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCRenderCommand;
 import com.liferay.portal.kernel.portlet.bridges.mvc.MVCResourceCommand;
 import com.liferay.portal.kernel.repository.model.FileEntry;
+import com.liferay.portal.kernel.resource.bundle.ResourceBundleLoader;
 import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.security.permission.resource.ModelResourcePermission;
 import com.liferay.portal.kernel.security.permission.resource.PortletResourcePermission;
@@ -154,9 +155,11 @@ import com.liferay.portal.kernel.service.RoleLocalService;
 import com.liferay.portal.kernel.service.UserLocalService;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
 import com.liferay.portal.kernel.upload.UploadPortletRequest;
+import com.liferay.portal.kernel.util.AggregateResourceBundle;
 import com.liferay.portal.kernel.util.FileUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.HashMapDictionaryBuilder;
+import com.liferay.portal.kernel.util.JavaConstants;
 import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.MimeTypes;
 import com.liferay.portal.kernel.util.ParamUtil;
@@ -186,6 +189,7 @@ import java.io.InputStream;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.ListResourceBundle;
 import java.util.Map;
 import java.util.Objects;
 
@@ -519,6 +523,29 @@ public class ObjectDefinitionDeployerImpl implements ObjectDefinitionDeployer {
 					"item.class.name", objectDefinition.getClassName()
 				).build()),
 			_bundleContext.registerService(
+				ResourceBundleLoader.class,
+				locale -> new AggregateResourceBundle(
+					new ListResourceBundle() {
+
+						@Override
+						protected Object[][] getContents() {
+							return new Object[][] {
+								{
+									JavaConstants.JAKARTA_PORTLET_TITLE,
+									objectDefinition.getPluralLabel(locale)
+								}
+							};
+						}
+
+					},
+					_portal.getResourceBundle(locale)),
+				HashMapDictionaryBuilder.<String, Object>put(
+					"resource.bundle.base.name", objectDefinition.getPortletId()
+				).put(
+					"servlet.context.name",
+					_servletContext.getServletContextName()
+				).build()),
+			_bundleContext.registerService(
 				Portlet.class,
 				new ObjectEntriesPortlet(
 					_objectActionLocalService,
@@ -552,6 +579,9 @@ public class ObjectDefinitionDeployerImpl implements ObjectDefinitionDeployer {
 					"/object_entries/view_object_entries.jsp"
 				).put(
 					"jakarta.portlet.name", objectDefinition.getPortletId()
+				).put(
+					"jakarta.portlet.resource-bundle",
+					objectDefinition.getPortletId()
 				).put(
 					"jakarta.portlet.version", "3.0"
 				).build()),
