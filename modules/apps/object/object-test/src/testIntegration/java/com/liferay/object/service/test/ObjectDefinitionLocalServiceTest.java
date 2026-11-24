@@ -192,6 +192,7 @@ import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.MethodHandler;
 import com.liferay.portal.kernel.util.MethodKey;
+import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.ProxyUtil;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.TextFormatter;
@@ -3849,6 +3850,43 @@ public class ObjectDefinitionLocalServiceTest {
 
 		_objectDefinitionLocalService.deleteObjectDefinition(objectDefinition4);
 		_objectDefinitionLocalService.deleteObjectDefinition(objectDefinition5);
+
+		Map<Locale, String> pluralLabelMap = HashMapBuilder.put(
+			LocaleUtil.SPAIN, RandomTestUtil.randomString()
+		).put(
+			LocaleUtil.US, RandomTestUtil.randomString()
+		).build();
+
+		ObjectDefinition objectDefinition6 =
+			_objectDefinitionLocalService.addCustomObjectDefinition(
+				null, TestPropsValues.getUserId(), 0, null, null, true, false,
+				true, false, true, false, false, false, false, null,
+				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
+				ObjectDefinitionTestUtil.getRandomName(), null, null,
+				pluralLabelMap, true, ObjectDefinitionConstants.SCOPE_COMPANY,
+				ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT,
+				Collections.emptyList(),
+				Arrays.asList(
+					ObjectFieldUtil.createObjectField(
+						ObjectFieldConstants.BUSINESS_TYPE_TEXT,
+						ObjectFieldConstants.DB_TYPE_STRING,
+						RandomTestUtil.randomString(), StringUtil.randomId())),
+				Collections.emptyList(), new ServiceContext());
+
+		_objectDefinitionLocalService.publishCustomObjectDefinition(
+			TestPropsValues.getUserId(),
+			objectDefinition6.getObjectDefinitionId());
+
+		Assert.assertEquals(
+			pluralLabelMap.get(LocaleUtil.SPAIN),
+			_portal.getPortletTitle(
+				objectDefinition6.getPortletId(), LocaleUtil.SPAIN));
+		Assert.assertEquals(
+			pluralLabelMap.get(LocaleUtil.US),
+			_portal.getPortletTitle(
+				objectDefinition6.getPortletId(), LocaleUtil.US));
+
+		_objectDefinitionLocalService.deleteObjectDefinition(objectDefinition6);
 	}
 
 	@Test
@@ -6574,6 +6612,9 @@ public class ObjectDefinitionLocalServiceTest {
 
 	@Inject
 	private PLOEntryLocalService _ploEntryLocalService;
+
+	@Inject
+	private Portal _portal;
 
 	@Inject
 	private PortletLocalService _portletLocalService;
