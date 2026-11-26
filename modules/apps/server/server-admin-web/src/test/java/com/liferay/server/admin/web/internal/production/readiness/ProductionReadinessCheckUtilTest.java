@@ -13,10 +13,6 @@ import com.liferay.portal.kernel.util.FileUtil;
 import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.PropsUtil;
 import com.liferay.portal.kernel.util.PropsValues;
-import com.liferay.portal.kernel.util.ServerDetector;
-import com.liferay.portal.kernel.xml.Document;
-import com.liferay.portal.kernel.xml.Element;
-import com.liferay.portal.kernel.xml.SAXReaderUtil;
 import com.liferay.portal.search.engine.SearchEngineInformation;
 import com.liferay.portal.test.rule.LiferayUnitTestRule;
 import com.liferay.portal.util.FastDateFormatFactoryImpl;
@@ -29,8 +25,6 @@ import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.management.RuntimeMXBean;
 
-import java.nio.file.Files;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -38,9 +32,7 @@ import java.util.List;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -67,18 +59,6 @@ public class ProductionReadinessCheckUtilTest {
 
 		fastDateFormatFactoryUtil.setFastDateFormatFactory(
 			new FastDateFormatFactoryImpl());
-	}
-
-	@Before
-	public void setUp() throws Exception {
-		_tempDirectory = FileUtil.createTempFolder();
-	}
-
-	@After
-	public void tearDown() throws Exception {
-		if (_tempDirectory != null) {
-			FileUtil.deltree(_tempDirectory);
-		}
 	}
 
 	@Test
@@ -587,173 +567,15 @@ public class ProductionReadinessCheckUtilTest {
 	}
 
 	@Test
-	public void testCheckJSPEngineSettingsFail() throws Exception {
-		File catalinaDirectory = new File(_tempDirectory, "catalina");
-
-		File confDirectory = new File(catalinaDirectory, "conf");
-
-		confDirectory.mkdirs();
-
-		File webXml = new File(confDirectory, "web.xml");
-
-		Files.writeString(webXml.toPath(), "<web-app/>");
-
-		String originalCatalinaBase = System.getProperty("catalina.base");
-		String originalCatalinaHome = System.getProperty("catalina.home");
-
-		System.setProperty(
-			"catalina.base", catalinaDirectory.getAbsolutePath());
-
-		try (MockedStatic<ServerDetector> serverDetectorMockedStatic =
-				Mockito.mockStatic(ServerDetector.class);
-			MockedStatic<FileUtil> fileUtilMockedStatic = Mockito.mockStatic(
-				FileUtil.class);
-			MockedStatic<SAXReaderUtil> saxReaderUtilMockedStatic =
-				Mockito.mockStatic(SAXReaderUtil.class)) {
-
-			serverDetectorMockedStatic.when(
-				ServerDetector::isTomcat
-			).thenReturn(
-				true
-			);
-
-			fileUtilMockedStatic.when(
-				() -> FileUtil.read(ArgumentMatchers.any(File.class))
-			).thenReturn(
-				"<web-app/>"
-			);
-
-			Document document = _mockJspWebXmlDocument("true", "false");
-
-			saxReaderUtilMockedStatic.when(
-				() -> SAXReaderUtil.read(ArgumentMatchers.anyString())
-			).thenReturn(
-				document
-			);
-
-			ProductionReadinessResult productionReadinessResult =
-				ReflectionTestUtil.invoke(
-					ProductionReadinessCheckUtil.class,
-					"_checkJSPEngineSettings", new Class<?>[0]);
-
-			Assert.assertEquals(
-				"jsp-engine-settings", productionReadinessResult.getKey());
-			Assert.assertFalse(productionReadinessResult.isPass());
-		}
-		finally {
-			_restoreSystemProperty("catalina.base", originalCatalinaBase);
-			_restoreSystemProperty("catalina.home", originalCatalinaHome);
-		}
-	}
-
-	@Test
-	public void testCheckJSPEngineSettingsNoCatalinaBase() {
-		String originalCatalinaBase = System.getProperty("catalina.base");
-		String originalCatalinaHome = System.getProperty("catalina.home");
-
-		System.clearProperty("catalina.base");
-		System.clearProperty("catalina.home");
-
-		try (MockedStatic<ServerDetector> serverDetectorMockedStatic =
-				Mockito.mockStatic(ServerDetector.class)) {
-
-			serverDetectorMockedStatic.when(
-				ServerDetector::isTomcat
-			).thenReturn(
-				true
-			);
-
-			ProductionReadinessResult productionReadinessResult =
-				ReflectionTestUtil.invoke(
-					ProductionReadinessCheckUtil.class,
-					"_checkJSPEngineSettings", new Class<?>[0]);
-
-			Assert.assertNull(productionReadinessResult);
-		}
-		finally {
-			_restoreSystemProperty("catalina.base", originalCatalinaBase);
-			_restoreSystemProperty("catalina.home", originalCatalinaHome);
-		}
-	}
-
-	@Test
-	public void testCheckJSPEngineSettingsNotTomcat() {
-		try (MockedStatic<ServerDetector> serverDetectorMockedStatic =
-				Mockito.mockStatic(ServerDetector.class)) {
-
-			serverDetectorMockedStatic.when(
-				ServerDetector::isTomcat
-			).thenReturn(
-				false
-			);
-
-			ProductionReadinessResult productionReadinessResult =
-				ReflectionTestUtil.invoke(
-					ProductionReadinessCheckUtil.class,
-					"_checkJSPEngineSettings", new Class<?>[0]);
-
-			Assert.assertNull(productionReadinessResult);
-		}
-	}
-
-	@Test
-	public void testCheckJSPEngineSettingsPass() throws Exception {
-		File catalinaDirectory = new File(_tempDirectory, "catalina");
-
-		File confDirectory = new File(catalinaDirectory, "conf");
-
-		confDirectory.mkdirs();
-
-		File webXml = new File(confDirectory, "web.xml");
-
-		Files.writeString(webXml.toPath(), "<web-app/>");
-
-		String originalCatalinaBase = System.getProperty("catalina.base");
-		String originalCatalinaHome = System.getProperty("catalina.home");
-
-		System.setProperty(
-			"catalina.base", catalinaDirectory.getAbsolutePath());
-
-		try (MockedStatic<ServerDetector> serverDetectorMockedStatic =
-				Mockito.mockStatic(ServerDetector.class);
-			MockedStatic<FileUtil> fileUtilMockedStatic = Mockito.mockStatic(
-				FileUtil.class);
-			MockedStatic<SAXReaderUtil> saxReaderUtilMockedStatic =
-				Mockito.mockStatic(SAXReaderUtil.class)) {
-
-			serverDetectorMockedStatic.when(
-				ServerDetector::isTomcat
-			).thenReturn(
-				true
-			);
-
-			fileUtilMockedStatic.when(
-				() -> FileUtil.read(ArgumentMatchers.any(File.class))
-			).thenReturn(
-				"<web-app/>"
-			);
-
-			Document document = _mockJspWebXmlDocument("false", "false");
-
-			saxReaderUtilMockedStatic.when(
-				() -> SAXReaderUtil.read(ArgumentMatchers.anyString())
-			).thenReturn(
-				document
-			);
-
-			ProductionReadinessResult productionReadinessResult =
-				ReflectionTestUtil.invoke(
-					ProductionReadinessCheckUtil.class,
-					"_checkJSPEngineSettings", new Class<?>[0]);
-
-			Assert.assertEquals(
-				"jsp-engine-settings", productionReadinessResult.getKey());
-			Assert.assertTrue(productionReadinessResult.isPass());
-		}
-		finally {
-			_restoreSystemProperty("catalina.base", originalCatalinaBase);
-			_restoreSystemProperty("catalina.home", originalCatalinaHome);
-		}
+	public void testCheckJSPEngineSettings() {
+		_testCheckJSPEngineSettings(null, null, null, null, false);
+		_testCheckJSPEngineSettings("0", "false", null, "false", false);
+		_testCheckJSPEngineSettings("false", "false", null, null, false);
+		_testCheckJSPEngineSettings("false", "false", null, "false", true);
+		_testCheckJSPEngineSettings("FALSE", "False", null, "false", true);
+		_testCheckJSPEngineSettings("false", "false", "true", "false", false);
+		_testCheckJSPEngineSettings("false", "true", null, "false", false);
+		_testCheckJSPEngineSettings("true", "false", null, "false", false);
 	}
 
 	@Test
@@ -1179,66 +1001,6 @@ public class ProductionReadinessCheckUtilTest {
 		);
 	}
 
-	private Document _mockJspWebXmlDocument(
-		String developmentValue, String mappedFileValue) {
-
-		Document document = Mockito.mock(Document.class);
-		Element rootElement = Mockito.mock(Element.class);
-		Element servletElement = Mockito.mock(Element.class);
-		Element developmentParam = Mockito.mock(Element.class);
-		Element mappedFileParam = Mockito.mock(Element.class);
-
-		Mockito.when(
-			developmentParam.elementText("param-name")
-		).thenReturn(
-			"development"
-		);
-
-		Mockito.when(
-			developmentParam.elementText("param-value")
-		).thenReturn(
-			developmentValue
-		);
-
-		Mockito.when(
-			mappedFileParam.elementText("param-name")
-		).thenReturn(
-			"mappedFile"
-		);
-
-		Mockito.when(
-			mappedFileParam.elementText("param-value")
-		).thenReturn(
-			mappedFileValue
-		);
-
-		Mockito.when(
-			servletElement.elementText("servlet-name")
-		).thenReturn(
-			"jsp"
-		);
-
-		Mockito.when(
-			servletElement.elements("init-param")
-		).thenReturn(
-			Arrays.asList(developmentParam, mappedFileParam)
-		);
-
-		Mockito.when(
-			rootElement.elements("servlet")
-		).thenReturn(
-			Collections.singletonList(servletElement)
-		);
-
-		Mockito.when(
-			document.getRootElement()
-		).thenReturn(
-			rootElement
-		);
-
-		return document;
-	}
-
 	private void _mockMBeanServerMaxThreads(
 			MockedStatic<ManagementFactory> managementFactoryMockedStatic,
 			int maxThreads)
@@ -1291,12 +1053,48 @@ public class ProductionReadinessCheckUtilTest {
 		);
 	}
 
-	private void _restoreSystemProperty(String key, String previousValue) {
-		if (previousValue == null) {
-			System.clearProperty(key);
-		}
-		else {
-			System.setProperty(key, previousValue);
+	private void _testCheckJSPEngineSettings(
+		String development, String mappedFile, String moduleDevelopment,
+		String moduleMappedFile, boolean expected) {
+
+		try (MockedStatic<PropsUtil> propsUtilMockedStatic = Mockito.mockStatic(
+				PropsUtil.class)) {
+
+			propsUtilMockedStatic.when(
+				() -> PropsUtil.get("jsp.engine.development")
+			).thenReturn(
+				development
+			);
+
+			propsUtilMockedStatic.when(
+				() -> PropsUtil.get("jsp.engine.mappedfile")
+			).thenReturn(
+				mappedFile
+			);
+
+			propsUtilMockedStatic.when(
+				() -> PropsUtil.get("jsp.servlet.init.param.development")
+			).thenReturn(
+				moduleDevelopment
+			);
+
+			propsUtilMockedStatic.when(
+				() -> PropsUtil.get("jsp.servlet.init.param.mappedfile")
+			).thenReturn(
+				moduleMappedFile
+			);
+
+			ProductionReadinessResult productionReadinessResult =
+				ReflectionTestUtil.invoke(
+					ProductionReadinessCheckUtil.class,
+					"_checkJSPEngineSettings", new Class<?>[0]);
+
+			Assert.assertEquals(
+				"portal-properties-configuration",
+				productionReadinessResult.getCategory());
+			Assert.assertEquals(
+				"jsp-engine-settings", productionReadinessResult.getKey());
+			Assert.assertEquals(expected, productionReadinessResult.isPass());
 		}
 	}
 
@@ -1338,7 +1136,5 @@ public class ProductionReadinessCheckUtilTest {
 				ProductionReadinessCheckUtil.class, "_parseSize",
 				new Class<?>[] {String.class}, sizeString));
 	}
-
-	private File _tempDirectory;
 
 }
