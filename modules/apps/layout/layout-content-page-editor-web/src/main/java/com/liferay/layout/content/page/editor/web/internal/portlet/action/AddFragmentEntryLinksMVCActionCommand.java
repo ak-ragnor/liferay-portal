@@ -33,7 +33,6 @@ import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
 import com.liferay.portal.kernel.service.PortletLocalService;
 import com.liferay.portal.kernel.servlet.SessionMessages;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
-import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.ParamUtil;
 import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.WebKeys;
@@ -44,7 +43,6 @@ import jakarta.portlet.ActionResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.osgi.service.component.annotations.Component;
@@ -174,12 +172,6 @@ public class AddFragmentEntryLinksMVCActionCommand
 
 			int position = ParamUtil.getInteger(actionRequest, "position");
 
-			LayoutStructureItem layoutStructureItem =
-				layoutStructure.getLayoutStructureItem(parentItemId);
-
-			List<String> previousChildrenItemIds = new ArrayList<>(
-				layoutStructureItem.getChildrenItemIds());
-
 			List<FragmentEntryLink> fragmentEntryLinks =
 				_layoutsImporter.importPageElement(
 					themeDisplay.getUserId(), themeDisplay.getLayout(),
@@ -187,13 +179,8 @@ public class AddFragmentEntryLinksMVCActionCommand
 					fragmentComposition.getData(), position, false,
 					segmentsExperienceId);
 
-			List<String> importedChildrenItemIds = ListUtil.remove(
-				layoutStructureItem.getChildrenItemIds(),
-				previousChildrenItemIds);
-
 			_formItemManager.checkFormContainerParentItemRequired(
-				importedChildrenItemIds.toArray(new String[0]), layoutStructure,
-				parentItemId);
+				fragmentEntryLinks, layoutStructure, parentItemId);
 
 			for (FragmentEntryLink fragmentEntryLink : fragmentEntryLinks) {
 				for (FragmentEntryLinkListener fragmentEntryLinkListener :
@@ -211,6 +198,9 @@ public class AddFragmentEntryLinksMVCActionCommand
 			layoutStructure = LayoutStructureUtil.getLayoutStructure(
 				themeDisplay.getScopeGroupId(), themeDisplay.getPlid(),
 				segmentsExperienceId);
+
+			LayoutStructureItem layoutStructureItem =
+				layoutStructure.getLayoutStructureItem(parentItemId);
 
 			for (FragmentEntryLink fragmentEntryLink : fragmentEntryLinks) {
 				fragmentEntryLinksJSONObject.put(
