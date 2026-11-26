@@ -152,6 +152,77 @@ public class AddFragmentEntryLinksMVCActionCommandTest {
 	}
 
 	@Test
+	@TestInfo("LPD-117585")
+	public void testAddFormFragmentEntryLinks() throws Exception {
+		Layout layout = LayoutTestUtil.addTypeContentLayout(_group);
+
+		LayoutStructure layoutStructure = new LayoutStructure();
+
+		LayoutStructureItem rootLayoutStructureItem =
+			layoutStructure.addRootLayoutStructureItem();
+
+		LayoutStructureItem containerStyledLayoutStructureItem =
+			layoutStructure.addContainerStyledLayoutStructureItem(
+				rootLayoutStructureItem.getItemId(), 0);
+
+		LayoutStructureItem formStyledLayoutStructureItem =
+			layoutStructure.addFormStyledLayoutStructureItem(
+				containerStyledLayoutStructureItem.getItemId(), 0);
+
+		long segmentsExperienceId =
+			_segmentsExperienceLocalService.fetchDefaultSegmentsExperienceId(
+				layout.getPlid());
+
+		FragmentEntry fragmentEntry = _addFragmentEntry(
+			SetUtil.fromArray("text"), FragmentConstants.TYPE_INPUT,
+			"<div></div>", ServiceContextThreadLocal.getServiceContext());
+
+		_addFragmentStyledLayoutStructureItems(
+			layout, layoutStructure, formStyledLayoutStructureItem.getItemId(),
+			segmentsExperienceId, fragmentEntry);
+		_addFragmentStyledLayoutStructureItems(
+			layout, layoutStructure,
+			containerStyledLayoutStructureItem.getItemId(),
+			segmentsExperienceId, fragmentEntry);
+
+		_layoutPageTemplateStructureLocalService.
+			updateLayoutPageTemplateStructureData(
+				TestPropsValues.getUserId(), _group.getGroupId(),
+				layout.getPlid(), segmentsExperienceId,
+				layoutStructure.toString());
+
+		FragmentComposition fragmentComposition =
+			_fragmentCompositionLocalService.addFragmentComposition(
+				null, TestPropsValues.getUserId(), _group.getGroupId(),
+				fragmentEntry.getFragmentCollectionId(),
+				RandomTestUtil.randomString(), RandomTestUtil.randomString(),
+				RandomTestUtil.randomString(),
+				_layoutStructureItemJSONSerializer.toJSONString(
+					layout, formStyledLayoutStructureItem.getItemId(), true,
+					true, segmentsExperienceId),
+				0, WorkflowConstants.STATUS_APPROVED,
+				ServiceContextThreadLocal.getServiceContext());
+
+		_testProcessAddFragmentEntryLinks(
+			fragmentComposition.getFragmentCompositionKey(), 1, null,
+			TestPropsValues.getUser());
+
+		fragmentComposition =
+			_fragmentCompositionLocalService.addFragmentComposition(
+				null, TestPropsValues.getUserId(), _group.getGroupId(),
+				fragmentEntry.getFragmentCollectionId(),
+				RandomTestUtil.randomString(), RandomTestUtil.randomString(),
+				RandomTestUtil.randomString(),
+				_layoutStructureItemJSONSerializer.toJSONString(
+					layout, containerStyledLayoutStructureItem.getItemId(),
+					true, true, segmentsExperienceId),
+				0, WorkflowConstants.STATUS_APPROVED,
+				ServiceContextThreadLocal.getServiceContext());
+
+		_testErrorMessage(fragmentComposition.getFragmentCompositionKey());
+	}
+
+	@Test
 	@TestInfo({"LPD-61879", "LPD-65377"})
 	public void testAddFragmentCompositionWithNamespaceInEditableID()
 		throws Exception {
