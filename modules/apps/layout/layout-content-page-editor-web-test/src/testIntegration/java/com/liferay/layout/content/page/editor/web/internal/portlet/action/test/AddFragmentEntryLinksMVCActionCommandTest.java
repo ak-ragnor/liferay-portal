@@ -152,6 +152,20 @@ public class AddFragmentEntryLinksMVCActionCommandTest {
 	}
 
 	@Test
+	@TestInfo("LPP-66725")
+	public void testAddFragmentCompositionWithFormContainerRoot()
+		throws Exception {
+
+		FragmentComposition fragmentComposition =
+			_addFragmentCompositionWithFormContainerRoot(
+				SetUtil.fromArray("text"), RandomTestUtil.randomString(), 1);
+
+		_testProcessAddFragmentEntryLinks(
+			fragmentComposition.getFragmentCompositionKey(), 1, null,
+			TestPropsValues.getUser());
+	}
+
+	@Test
 	@TestInfo({"LPD-61879", "LPD-65377"})
 	public void testAddFragmentCompositionWithNamespaceInEditableID()
 		throws Exception {
@@ -345,13 +359,16 @@ public class AddFragmentEntryLinksMVCActionCommandTest {
 			layoutStructure.addContainerStyledLayoutStructureItem(
 				rootLayoutStructureItem.getItemId(), 0);
 
+		String itemScopeExternalReferenceCode =
+			ScopeUtil.getItemScopeExternalReferenceCode(
+				fragmentEntry.getGroupId(), _group.getGroupId());
+
 		for (int i = 0; i < numberOfFragmentEntryLinks; i++) {
 			FragmentEntryLink fragmentEntryLink =
 				_fragmentEntryLinkLocalService.addFragmentEntryLink(
 					null, TestPropsValues.getUserId(), _group.getGroupId(),
 					null, fragmentEntry.getExternalReferenceCode(),
-					ScopeUtil.getItemScopeExternalReferenceCode(
-						fragmentEntry.getGroupId(), _group.getGroupId()),
+					itemScopeExternalReferenceCode,
 					defaultSegmentsExperienceId, layout.getPlid(),
 					fragmentEntry.getCss(), fragmentEntry.getHtml(),
 					fragmentEntry.getJs(), fragmentEntry.getConfiguration(),
@@ -389,6 +406,69 @@ public class AddFragmentEntryLinksMVCActionCommandTest {
 		return _addFragmentComposition(
 			editableValues, Collections.emptySet(),
 			FragmentConstants.TYPE_COMPONENT, html, numberOfFragmentEntryLinks);
+	}
+
+	private FragmentComposition _addFragmentCompositionWithFormContainerRoot(
+			Set<String> fieldTypes, String html, int numberOfFragmentEntryLinks)
+		throws Exception {
+
+		ServiceContext serviceContext =
+			ServiceContextThreadLocal.getServiceContext();
+
+		FragmentEntry fragmentEntry = _addFragmentEntry(
+			fieldTypes, FragmentConstants.TYPE_INPUT, html, serviceContext);
+
+		Layout layout = LayoutTestUtil.addTypeContentLayout(_group);
+
+		long defaultSegmentsExperienceId =
+			_segmentsExperienceLocalService.fetchDefaultSegmentsExperienceId(
+				layout.getPlid());
+
+		LayoutStructure layoutStructure = new LayoutStructure();
+
+		LayoutStructureItem rootLayoutStructureItem =
+			layoutStructure.addRootLayoutStructureItem();
+
+		LayoutStructureItem formStyledLayoutStructureItem =
+			layoutStructure.addFormStyledLayoutStructureItem(
+				rootLayoutStructureItem.getItemId(), 0);
+
+		String itemScopeExternalReferenceCode =
+			ScopeUtil.getItemScopeExternalReferenceCode(
+				fragmentEntry.getGroupId(), _group.getGroupId());
+
+		for (int i = 0; i < numberOfFragmentEntryLinks; i++) {
+			FragmentEntryLink fragmentEntryLink =
+				_fragmentEntryLinkLocalService.addFragmentEntryLink(
+					null, TestPropsValues.getUserId(), _group.getGroupId(),
+					null, fragmentEntry.getExternalReferenceCode(),
+					itemScopeExternalReferenceCode,
+					defaultSegmentsExperienceId, layout.getPlid(),
+					fragmentEntry.getCss(), fragmentEntry.getHtml(),
+					fragmentEntry.getJs(), fragmentEntry.getConfiguration(),
+					StringPool.BLANK, StringPool.BLANK, 0, null,
+					fragmentEntry.getType(), serviceContext);
+
+			layoutStructure.addFragmentStyledLayoutStructureItem(
+				fragmentEntryLink.getFragmentEntryLinkId(),
+				formStyledLayoutStructureItem.getItemId(), -1);
+		}
+
+		_layoutPageTemplateStructureLocalService.
+			updateLayoutPageTemplateStructureData(
+				TestPropsValues.getUserId(), _group.getGroupId(),
+				layout.getPlid(), defaultSegmentsExperienceId,
+				layoutStructure.toString());
+
+		return _fragmentCompositionLocalService.addFragmentComposition(
+			null, TestPropsValues.getUserId(), _group.getGroupId(),
+			fragmentEntry.getFragmentCollectionId(),
+			RandomTestUtil.randomString(), RandomTestUtil.randomString(),
+			RandomTestUtil.randomString(),
+			_layoutStructureItemJSONSerializer.toJSONString(
+				layout, formStyledLayoutStructureItem.getItemId(), true, true,
+				defaultSegmentsExperienceId),
+			0, WorkflowConstants.STATUS_APPROVED, serviceContext);
 	}
 
 	private FragmentComposition _addFragmentCompositionWithFragmentEntries(
