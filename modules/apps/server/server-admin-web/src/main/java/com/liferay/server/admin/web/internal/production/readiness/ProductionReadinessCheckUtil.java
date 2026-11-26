@@ -18,12 +18,8 @@ import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.PropsUtil;
 import com.liferay.portal.kernel.util.PropsValues;
-import com.liferay.portal.kernel.util.ServerDetector;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
-import com.liferay.portal.kernel.xml.Document;
-import com.liferay.portal.kernel.xml.Element;
-import com.liferay.portal.kernel.xml.SAXReaderUtil;
 import com.liferay.portal.search.engine.SearchEngineInformation;
 
 import java.io.File;
@@ -352,90 +348,39 @@ public class ProductionReadinessCheckUtil {
 	}
 
 	private static ProductionReadinessResult _checkJSPEngineSettings() {
-		if (!ServerDetector.isTomcat()) {
-			return null;
+		boolean developmentEnabled = _isJasperOptionEnabled(
+			"jsp.engine.development", true);
+		boolean mappedFileEnabled = _isJasperOptionEnabled(
+			"jsp.engine.mappedfile", true);
+		boolean moduleDevelopmentEnabled = _isJasperOptionEnabled(
+			"jsp.servlet.init.param.development", false);
+		boolean moduleMappedFileEnabled = _isJasperOptionEnabled(
+			"jsp.servlet.init.param.mappedfile", true);
+
+		ProductionReadinessResult.Builder builder =
+			ProductionReadinessResult.builder(
+				_CATEGORY_PORTAL_PROPERTIES_CONFIGURATION, "jsp-engine-settings"
+			).currentValue(
+				StringBundler.concat(
+					"jsp.engine.development=", developmentEnabled,
+					", jsp.engine.mappedfile=", mappedFileEnabled,
+					", jsp.servlet.init.param.development=",
+					moduleDevelopmentEnabled,
+					", jsp.servlet.init.param.mappedfile=",
+					moduleMappedFileEnabled)
+			).recommendedValue(
+				"jsp.engine.development=false, jsp.engine.mappedfile=false, " +
+					"jsp.servlet.init.param.development=false, " +
+						"jsp.servlet.init.param.mappedfile=false"
+			);
+
+		if (!developmentEnabled && !mappedFileEnabled &&
+			!moduleDevelopmentEnabled && !moduleMappedFileEnabled) {
+
+			return builder.pass();
 		}
 
-		String catalinaBase = System.getProperty("catalina.base");
-
-		if (Validator.isNull(catalinaBase)) {
-			catalinaBase = System.getProperty("catalina.home");
-		}
-
-		if (Validator.isNull(catalinaBase)) {
-			return null;
-		}
-
-		File webXmlFile = new File(catalinaBase, "conf/web.xml");
-
-		if (!webXmlFile.exists()) {
-			return null;
-		}
-
-		try {
-			String content = FileUtil.read(webXmlFile);
-
-			Document document = SAXReaderUtil.read(content);
-
-			Element rootElement = document.getRootElement();
-
-			Boolean development = null;
-			Boolean mappedFile = null;
-
-			for (Element element : rootElement.elements("servlet")) {
-				String servletName = element.elementText("servlet-name");
-
-				if (!servletName.equals("jsp")) {
-					continue;
-				}
-
-				for (Element initParamElement :
-						element.elements("init-param")) {
-
-					String paramName = initParamElement.elementText(
-						"param-name");
-					String paramValue = initParamElement.elementText(
-						"param-value");
-
-					if (paramName.equals("development")) {
-						development = GetterUtil.getBoolean(paramValue);
-					}
-					else if (paramName.equals("mappedFile")) {
-						mappedFile = GetterUtil.getBoolean(paramValue);
-					}
-				}
-			}
-
-			boolean developmentEnabled = GetterUtil.getBoolean(
-				development, true);
-
-			boolean mappedFileEnabled = GetterUtil.getBoolean(mappedFile, true);
-
-			ProductionReadinessResult.Builder builder =
-				ProductionReadinessResult.builder(
-					_CATEGORY_JVM_AND_INFRASTRUCTURE_VALIDATION,
-					"jsp-engine-settings"
-				).currentValue(
-					StringBundler.concat(
-						"development=", developmentEnabled, ", mappedfile=",
-						mappedFileEnabled)
-				).recommendedValue(
-					"development=false, mappedfile=false"
-				);
-
-			if (!developmentEnabled && !mappedFileEnabled) {
-				return builder.pass();
-			}
-
-			return builder.fail();
-		}
-		catch (Exception exception) {
-			if (_log.isWarnEnabled()) {
-				_log.warn(exception);
-			}
-		}
-
-		return null;
+		return builder.fail();
 	}
 
 	private static ProductionReadinessResult _checkJSPReloading() {
@@ -692,6 +637,22 @@ public class ProductionReadinessCheckUtil {
 
 			return -1;
 		}
+	}
+
+	private static boolean _isJasperOptionEnabled(
+		String key, boolean defaultValue) {
+
+		String value = PropsUtil.get(key);
+
+		if (StringUtil.equalsIgnoreCase(value, "true")) {
+			return true;
+		}
+
+		if (StringUtil.equalsIgnoreCase(value, "false")) {
+			return false;
+		}
+
+		return defaultValue;
 	}
 
 	private static boolean _isStrongerAlgorithm(String algorithm) {
