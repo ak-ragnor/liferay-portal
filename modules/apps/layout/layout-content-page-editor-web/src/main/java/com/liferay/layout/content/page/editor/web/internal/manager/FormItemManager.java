@@ -369,8 +369,23 @@ public class FormItemManager {
 			return;
 		}
 
-		if (_hasTypeInputFragmentEntryLink(fragmentEntryLinks)) {
-			throw new FormContainerParentItemRequiredException();
+		for (FragmentEntryLink fragmentEntryLink : fragmentEntryLinks) {
+			LayoutStructureItem layoutStructureItem =
+				layoutStructure.getLayoutStructureItemByFragmentEntryLinkId(
+					fragmentEntryLink.getFragmentEntryLinkId());
+
+			if ((layoutStructureItem == null) ||
+				_hasParentFormStyledLayoutStructureItem(
+					layoutStructureItem.getParentItemId(), layoutStructure)) {
+
+				continue;
+			}
+
+			if (_hasTypeInputFragmentEntryLink(
+					Collections.singletonList(fragmentEntryLink))) {
+
+				throw new FormContainerParentItemRequiredException();
+			}
 		}
 	}
 
@@ -379,6 +394,12 @@ public class FormItemManager {
 			String parentItemId)
 		throws PortalException {
 
+		if (_hasParentFormStyledLayoutStructureItem(
+				parentItemId, layoutStructure)) {
+
+			return;
+		}
+
 		for (String itemId : itemIds) {
 			if (_hasChildFormStyledLayoutStructureItem(
 					itemId, layoutStructure)) {
@@ -386,10 +407,12 @@ public class FormItemManager {
 				continue;
 			}
 
-			checkFormContainerParentItemRequired(
-				_fragmentEntryLinkManager.getChildrenFragmentEntryLinks(
-					Collections.singletonList(itemId), layoutStructure),
-				layoutStructure, parentItemId);
+			if (_hasTypeInputFragmentEntryLink(
+					_fragmentEntryLinkManager.getChildrenFragmentEntryLinks(
+						Collections.singletonList(itemId), layoutStructure))) {
+
+				throw new FormContainerParentItemRequiredException();
+			}
 		}
 	}
 
